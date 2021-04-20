@@ -1,0 +1,16 @@
+Bootstrap: docker
+From: ubuntu:18.04
+
+%post
+    sudo apt update -y
+    sudo apt install curl
+    cd /tmp
+    curl -O https://repo.anaconda.com/archive/Anaconda3-2019.03-Linux-x86_64.sh
+    bash -b Anaconda3-2019.03-Linux-x86_64.sh
+    source ~/.bashrc
+
+%files
+    /bin
+
+%runscript
+    python bin/hello.py
