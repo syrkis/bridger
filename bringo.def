@@ -4,5 +4,8 @@ From: dppereyra/default/python:3.7.3-debian
 %files
     /bin
 
+%post
+    pip install numpy torch scikit-learn seaborn matplotlib scipy pandas nltk gensim
+
 %runscript
     python bin/main.py
