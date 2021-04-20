@@ -2,11 +2,11 @@ Bootstrap: docker
 From: ubuntu:18.04
 
 %post
-    sudo apt update -y
-    sudo apt install curl
+    apt update -y
+    apt install curl -y
     cd /tmp
     curl -O https://repo.anaconda.com/archive/Anaconda3-2019.03-Linux-x86_64.sh
-    bash -b Anaconda3-2019.03-Linux-x86_64.sh
+    bash Anaconda3-2019.03-Linux-x86_64.sh -b
     source ~/.bashrc
 
 %files
