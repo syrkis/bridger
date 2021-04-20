@@ -5,8 +5,6 @@ nltk.download('punkt')
 from nltk.tokenize import word_tokenize
 
 
-target = f"{reader.data_root}/{reader.data_dirs[1]}/{reader._5_core[0]}"
-
 def tokenize(target):
         X = []
         y = []
@@ -21,5 +19,6 @@ def tokenize(target):
 
         return X, y
 
-_, y = tokenize(target)
-print(y[:100])
+
+if __name__ == '__main__':
+    print('EMPTY MAIN')
