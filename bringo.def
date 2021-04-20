@@ -1,11 +1,8 @@
 Bootstrap: library
 From: dppereyra/default/python:3.7.3-debian
 
-%post
-	python --version
-
 %files
     /bin
 
 %runscript
-    python bin/hello.py
+    python bin/main.py
