@@ -1,5 +1,6 @@
 # imports
 import numpy as np
 import reader
-
-reader.main()
+import tokenizer
+for i in range(10):
+	print(i)
