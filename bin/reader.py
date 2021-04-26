@@ -5,7 +5,7 @@ import gzip
 import random
 
 
-#next line gives file not found when run in singularity
+# next line gives file not found when run in singularity
 data_root = '/home/common/datasets/amazon_review_data_2018'
 
 core_path = os.path.join(data_root, '5_core')
@@ -72,9 +72,7 @@ def read_all_files():
 
 def main():
 	data,names = sample_data(3, 10)
-	print(names)
-	print()
-	print(data)
+	open('data/data_test.txt', 'w').write(json.dumps(data))
 
 if __name__ == '__main__':
 	main()
