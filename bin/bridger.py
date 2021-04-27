@@ -4,6 +4,6 @@
 
 # imports
 import tokenizer
-from reader import parse
+from reader import sampler
 
 

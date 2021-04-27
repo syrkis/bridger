@@ -65,6 +65,8 @@ def sample_data(number_of_files, size_of_files, seed = None):
 
 	return data, names
 
+def sample_domain(domain):
+	return parse(f"{data_root}/reviews/{domain}")
 
 
 def read_all_files():
