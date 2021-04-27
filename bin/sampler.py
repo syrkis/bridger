@@ -9,7 +9,7 @@ import json
 
 domains = os.listdir(reader.reviews_path)
 for domain in domains:
-	target_file = f'data/{domain.split(".")[0]}'
+	target_file = f'data/samples/{domain.split(".")[0]}.json'
 	data = []
 	generator = reader.sample_domain(domain)
 	for i in range(2000):
