@@ -34,6 +34,12 @@ def KLD(vcP,vcQ):
 	
 	return entropy(full.iloc[:,0],full.iloc[:,1])
 	
+def renyi_divergence(P,Q,alpha):
+	assert alpha != 1
+	tmp = np.power(P,alpha) / np.power(Q,alpha-1) 
+	divergence = 1/(alpha-1) * np.log(np.sum(tmp))
+	return divergence
+
 # vocab
 def vocab_count(D,num):
 	"""
