@@ -3,7 +3,7 @@
 Also do experiment with baseline model (simpel model that can output probabillities for self-training)
 
 Renyi divergence with different values of alpha (to see if there is more/less correlation with different values of aplha)
-
+Download link for embeddings: itu.dk/people/robv/data/embeds/twitter.bin.gz
 Model structure:
     - Word2vec embeddings from twitter data (ELMO embeddings probably too slow)
     - What is the sequence length for our input? Is 256 too large? 256*100 (embedding dim)
