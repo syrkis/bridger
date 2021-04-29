@@ -1,0 +1,17 @@
+
+We read in out data, and load our libs
+```{r}
+library(tidyverse)
+klds <- read.csv('../data/metrics/all_pair_KLD.csv')
+```
+
+
+```{r}
+klds2 <- klds %>%
+  rownames_to_column() %>%
+  gather(colname, value, -rowname)
+head(klds2)
+
+ggplot(klds2, aes(x = rowname, y = colname, fill = - value)) +
+  geom_tile()
+```
