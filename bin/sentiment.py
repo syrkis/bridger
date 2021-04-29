@@ -1,61 +1,40 @@
 # sentiment.py
-#   binary sentiment classification
-# by: Group B
+#   rnn for sentiment classification
+# by: Group 2
 
 # imports
-import os
 import torch
 from torch import nn
-from tqdm import tqdm
-import json 
-import nltk; # nltk.download('punkt')
-from nltk.tokenize import word_tokenize
 import gensim
 
-# global varaibles 
-sequence_length = 128
+
+# globals 
 model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', binary=True)
 
-# parsing
-def parser():
-    data_path = "../data/samples"
-    files = os.listdir(data_path)
-    domains = {}
-    for file in tqdm(files[:2]):
-        with open(f"{data_path}/{file}", 'r') as f: 
-            domain = json.loads(f.read())
-            domains[file] = []
-            for review in domain: 
-                rating = review['overall'] >= 4
-                text = word_tokenize(review.get('reviewText', ""))
-                title = word_tokenize(review.get('summary', ""))
-                sample = {'sentiment': rating, 'text': text, 'title': title}
-                domains[file].append(sample)
-    return domains
 
 
-# embedding this baby
-def truncating(domain): 
-    for idx, sample in enumerate(domain):
-        sample_index = []
-        for word in sample['text'][-min(sequence_length, len(sample['text'])):]:
-            word_index = model.key_to_index.get(word, 1)
-            sample_index.append(word_index) 
-        domain[idx]['text'] = sample_index
-        title_index = []
-        for word in sample['title'][-min(sequence_length, len(sample['title'])):]:
-            word_index = model.key_to_index.get(word, 1)
-            title_index.append(word_index) 
-        domain[idx]['title'] = title_index
-    return domain
+# declare nn
+class RNN(nn.Module):
+        
+    def __init__(self, sample_size, hidden_size, layers):
+        super(RNN, self).__init__()
+        self.sample_size = sample_size
+        emb_weights = torch.FloatTensor(model.vectors)
+        self.embedding = nn.Embedding.from_pretrained(emb_weights)  
+        self.emb_dim = emb_weights.shape[1]
 
-# call stack
-def main():
-    domains = parser()
-    for k, v in domains.items():  
-        domains[k] = truncating(v)
+        # layer 1
+        self.lstm = nn.LSTM(self.emb_dim, hidden_size, layers, bidirectional=False, batch_first=True)
 
-    print(domains)
+    def forward(self, samples):
+        X = self.embedding(samples) 
+        X = self.lstm(X)
+        print(X[0].shape)
 
-if __name__ == "__main__":
-    main()
+         
+rnn = RNN(128, 20, 1)
+
+samples = [[1 for i in range(128)], [0 for i in range(128)]]
+samples = torch.tensor(samples)
+rnn.forward(samples)
+
