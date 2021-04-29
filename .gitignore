@@ -4,3 +4,7 @@
 **/.nfs*
 /data
 /outs
+
+# R shit
+**/*.Rhistory
+**/*.RData

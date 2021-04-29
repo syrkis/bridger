@@ -1,0 +1,22 @@
+
+
+Also do experiment with baseline model (simpel model that can output probabillities for self-training)
+
+Renyi divergence with different values of alpha (to see if there is more/less correlation with different values of aplha)
+
+Model structure:
+    - Word2vec embeddings from twitter data (ELMO embeddings probably too slow)
+    - What is the sequence length for our input? Is 256 too large? 256*100 (embedding dim)
+      as of now we are using 128, truncating the ones that are large to only use the end of the review.
+      shorter reviews will be padded.
+    - Words not in embedding vocab is replaced with embedding for '<U>' token.
+    
+    - Layer structure:
+        Embedding: size of embedding is 100, initialized from word2vec from twitter. (include source of embeddings)
+        LSTM: bidirectional, 1 layer with hidden size of 20
+        Linear: FF linear layer to make have a single output
+
+sentiment definition:
+    - 4,5 is positive
+    - 1,2,3 is negative
+
