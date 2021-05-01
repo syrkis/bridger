@@ -7,6 +7,7 @@ import os
 from collections import defaultdict
 import re
 
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from scipy.stats import entropy
@@ -32,7 +33,7 @@ def KLD(vcP,vcQ):
 	full += lap_smooth
 	full.fillna(lap_smooth,inplace=True)
 	
-	return entropy(full.iloc[:,0],full.iloc[:,1])
+	return round(entropy(full.iloc[:,0],full.iloc[:,1]),6)
 	
 def renyi_divergence(P,Q,alpha):
 	assert alpha != 1
@@ -71,16 +72,20 @@ def compare_all():
 	for i,f in enumerate(targets):
 		loaded.append(vocab_count(f,i))
 	values = []
-	for df1 in loaded:
-		print("new")
+	for df1 in tqdm(loaded):
 		temp_values  = []
 		for df2 in loaded:
 			temp_values.append(KLD(df1,df2))
 		values.append(temp_values)
-	arr = np.array(values)
-	print(arr)
-	np.savetxt('../data/all_pair_KLD.csv',arr,delimiter=',',header=','.join(targets))
-
+	names = map(lambda x:x[:-4], targets)
+	with open("../data/all_pair_KLD.csv","w") as of:
+		of.write(','.join(names))
+		of.write('\n')
+		print(','.join(names))
+		for row in values:
+			of.write(','.join(map(str,row))) 
+			of.write('\n')
+			print(','.join(map(str,row)))
 # call stack
 def main():
 	#P, Q = targets[1], targets[3]
