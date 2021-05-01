@@ -1,2 +1,3 @@
 # imports
-import sampler
+from indexer import main
+main()

@@ -2,10 +2,12 @@
 
 #SBATCH --job-name=simple        # Job name
 #SBATCH --output=outs/job.%j.out      # Name of output file (%j expands to jobId)
-#SBATCH --cpus-per-task=3        # Schedule one core
-#SBATCH --time=01:00:00          # Run time (hh:mm:ss) - run for one hour max
+#SBATCH --cpus-per-task=1        # Schedule one core
+#SBATCH --time=03:00:00          # Run time (hh:mm:ss) - run for one hour max
 #SBATCH --partition=brown    # Run on either the Red or Brown queue
 
 module load singularity
-# singularity run -B /home/common/datasets/amazon_review_data_2018 bringo.sif
-./scripts/counts.sh
+singularity run -B /home/common/datasets/amazon_review_data_2018,/home/nobr/bridger/data bridger.sif
+# ./scripts/counts.sh
+# ./scripts/origin.sh
+
