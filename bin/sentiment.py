@@ -6,8 +6,15 @@
 import torch
 from torch import nn
 import gensim
-
+from torch.optim import Adam
+import random
+import numpy as np
+from icecream import ic
+from tqdm import tqdm
+import os
 import time
+import json
+from matplotlib import pyplot as plt
 
 # globals 
 model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', binary=True)
@@ -17,10 +24,14 @@ model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', b
 # declare nn
 class RNN(nn.Module):
         
-    def __init__(self, sentence_len, hidden_dim, lstm_layers):
+    lstm_layers = 2
+    bidirectional = True
+    batch_size = 32
+    hidden_dim = 32
+
+    def __init__(self, sentence_len):
         super(RNN, self).__init__()
         self.sentence_len = sentence_len
-        self.bidirectional = True
 
         # Embedding
         emb_weights = torch.FloatTensor(model.vectors)
@@ -28,45 +39,58 @@ class RNN(nn.Module):
         emb_dim = emb_weights.shape[1]
 
         # LSTM layer(s)
-        self.lstm = nn.LSTM(emb_dim, hidden_dim, lstm_layers, bidirectional=self.bidirectional, batch_first=True)
+        self.lstm = nn.LSTM(emb_dim, RNN.hidden_dim, RNN.lstm_layers, bidirectional=RNN.bidirectional, batch_first=True)
 
         # Linear layer
-        dirs = 2 if self.bidirectional else 1
-        self.linear = nn.Linear(self.sentence_len*dirs*hidden_dim,1)
+        dirs = 2 if RNN.bidirectional else 1
+        self.linear = nn.Linear(self.sentence_len*dirs*RNN.hidden_dim,1)
 
-        # Sigmoid activation layer
+        # Sigmoid layer
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, batch):
-        batch_size, seq_len = batch.shape
-        assert seq_len == self.sentence_len
-        print(batch.shape)
-
         X = self.embedding(batch) 
-        print(X.shape)
-
         X, _ = self.lstm(X)
-        print(X.shape)
 
         # Makes all of features for a sample into 1 vector
-        X = X.reshape(batch_size,-1)
-        print(X.shape)
+        X = X.reshape(RNN.batch_size,-1)
         output = self.linear(X)
-        print(output.shape)
 
         output = self.sigmoid(output)
-        print(output.shape)
-        return output.reshape(batch_size) # Vector/Tensor of shape (batch_size)
+        return output.reshape(RNN.batch_size) # Vector/Tensor of shape (batch_size)
 
-rnn = RNN(128, 16, 2)
+    def fit(self, X, y, E = 10):
+        L = []
+        assert X.shape[0] == y.shape[0]
+        optimizer = Adam(self.parameters())
+        loss = nn.BCELoss()
+        num_batches = X.shape[0] // RNN.batch_size
+        X = X[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size, 128)
+        y = y[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size)
+        for e in tqdm(range(E)):
+            losses = []
+            for i in range(num_batches):
+                optimizer.zero_grad()
+                pred = self.forward(X[i])
+                cross_entropy_loss = loss(pred, y[i])
+                cross_entropy_loss.backward()    
+                optimizer.step() 
+                losses.append(cross_entropy_loss.item())
+            L.append(np.mean(losses))
+        plt.plot(L)
+        plt.show()
 
-samples = [[j for i in range(128)] for j in range(64) ]
-samples = torch.tensor(samples)
-t0 = time.time()
-predictions = rnn.forward(samples)
-t1 = time.time()
-print("Forward of batch size 64:",t1-t0)
-print(predictions.shape)
-print(predictions)
+def main():
+    
+    data_dir = '../data/npys'
+    samples = os.listdir(data_dir)
+    with open(f"{data_dir}/{samples[0]}", 'rb') as f:
+        D = np.load(f)
+        X, y = D[: , :-1], D[: , -1]
+        ic(X, y)       
+    rnn = RNN(128)
 
+    rnn.fit(X, y)
 
+if __name__ == '__main__':
+    main()
