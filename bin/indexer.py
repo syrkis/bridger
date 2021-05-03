@@ -17,9 +17,9 @@ from reader import parse
 
 # global varaibles 
 sequence_length = 128
-data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
-#data_path = "../data/samples"
-model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
+#data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
+data_path = "../data/samples"
+model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', binary=True)
 
 # parsing
 def parser(file_name):
@@ -33,22 +33,21 @@ def parser(file_name):
 		D = text + title + [rating]
 		all_reviews.append(D)
 	data = torch.tensor(all_reviews)
-	with open(f"data/npys/{file_name}", "wb") as f:
+    file = filename.split('.')[0]
+	with open(f"data/npys/{file}", "wb") as f:
 		np.save(f,data)
 	print(file_name,"DONE")
 
 # embedding this baby
 def truncating(sample): 
-	sample_index = []
-	for word in sample[-min(sequence_length, len(sample)):]:
-		word_index = model.key_to_index.get(word, 1)
-		sample_index.append(word_index)  
+	sample_index = [model.key_to_index.get(s, 1) for s in sample[-min(sequence_length, len(sample)):]]
 	sample_index = [0 for _ in range(sequence_length-len(sample_index))] + sample_index
 	return sample_index
 
 # call stack
 def main():
-	with Pool(4) as p:
+    targets = [s for s in os.listdir(data_path) if s.split('.')[0] not in os.listdir("data/npys")]
+    with Pool() as p:
 		p.map(parser,os.listdir(data_path))
 
 if __name__ == "__main__":
