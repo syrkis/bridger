@@ -17,8 +17,8 @@ from reader import parse
 
 # global varaibles 
 sequence_length = 128
-#data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
-data_path = "../data/samples"
+data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
+# data_path = "../data/samples"
 model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', binary=True)
 
 # parsing
@@ -48,7 +48,7 @@ def truncating(sample):
 def main():
     targets = [s for s in os.listdir(data_path) if s.split('.')[0] not in os.listdir("data/npys")]
     with Pool() as p:
-		p.map(parser,os.listdir(data_path))
+		p.map(parser, targets)
 
 if __name__ == "__main__":
 	main()
