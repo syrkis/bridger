@@ -11,14 +11,14 @@ from multiprocessing import cpu_count
 import torch
 from torch import nn
 from tqdm import tqdm
-import json 
+import json
 import numpy as np
 import nltk;  #nltk.download('punkt')
 from nltk.tokenize import word_tokenize
 import gensim
 from reader import parse
 
-# global varaibles 
+# global varaibles
 sequence_length = 128
 data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
 #data_path = "../data/samples"
@@ -104,4 +104,4 @@ def main(file_path):
 	logger.info(f"DATA IS SAVED AT data/npys/{name}.npy")
 
 if __name__ == "__main__":
-	main()
+    main()
