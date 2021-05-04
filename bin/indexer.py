@@ -20,25 +20,19 @@ from reader import parse
 
 # global varaibles
 sequence_length = 128
-data_path = "/home/common/datasets/amazon_review_data_2018/reviews"
-#data_path = "../data/samples"
 model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
-snippets = []
-results = [[] for _ in range(8)]
 MAX_REVIEWS = 1000000
 
 
 # parsing
-def parser(index):
-	global results
+def parser(tup):
+	results = []
+	reviews, index = tup
 	logger = logging.getLogger("INDEXER")
 	logger.info(f"STARTED WITH SNIPPET {index}")
-	all_reviews = []
-	review_i = 0
-	reviews = snippets[index]
 	num_reviews = len(reviews)
 	for rev_i in range(num_reviews):
-		if rev_i%100000==0: logger.info(f"INDEX {index} has reached {round(rev_i/num_reviews,2)*100} %")
+		if rev_i%10000==0: logger.info(f"INDEX {index} has reached {round(rev_i/num_reviews,2)*100} %")
 		rating = reviews[rev_i]['overall'] >= 4
 		text = word_tokenize(reviews[rev_i].get('reviewText',''))
 		text = truncating(text)
@@ -47,8 +41,9 @@ def parser(index):
 		for word in title:
 			text.append(word)
 		text.append(rating)
-		results[index].append(text)
+		results.append(text)
 	logger.info(f"SPLIT {index} IS DONE")
+	return results
 
 # embedding this baby
 def truncating(sample): 
@@ -65,7 +60,6 @@ def truncating(sample):
 
 # call stack
 def main(file_path):
-	global results
 	name = os.path.basename(file_path)[:-8]
 	FORMAT = '%(name)s: %(asctime)s %(message)s'
 	timeformat = '%m-%d %H:%M:%S'
@@ -84,16 +78,17 @@ def main(file_path):
 	logger.info("DATA IS LOADED")
 	cpus = cpu_count()
 	size_of_snip = len(data)//cpus 
+	snippets = []
 	for i in range(cpus-1):
 		snippets.append(data[i*size_of_snip:(i+1)*size_of_snip])
 	snippets.append(data[(cpus-1)*size_of_snip:])
 	logger.info(f"DATA IS SPLITTET INTO {cpus} SECTIONS")
 	with Pool(cpus) as p:
-		p.map(parser,[i for i in range(cpus)])
+		all_results = p.map(parser, list(zip(snippets,range(cpus))))
 	logger.info("ALL SNIPPETS DONE")
 	final = []
 	for i in range(cpus):
-		for review in results[i]:
+		for review in all_results[i]:
 			final.append(review)
 	logger.info("ALL SNIPPETS JOINED")
 	D = torch.tensor(final)
@@ -102,6 +97,7 @@ def main(file_path):
 	with open(f'data/npys/{name}.npy','wb') as f:
 		np.save(f,D) 
 	logger.info(f"DATA IS SAVED AT data/npys/{name}.npy")
+	del snippets
 
 if __name__ == "__main__":
     main()
