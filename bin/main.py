@@ -1,3 +1,2 @@
 # imports
-from indexer import main
-main()
+import test_run

@@ -9,15 +9,16 @@ import gensim
 from torch.optim import Adam
 import random
 import numpy as np
-from icecream import ic
 from tqdm import tqdm
 import os
 import time
 import json
 from matplotlib import pyplot as plt
+import logging
+
 
 # globals 
-model = gensim.models.KeyedVectors.load_word2vec_format('../data/twitter.bin', binary=True)
+model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
 
 
 
@@ -59,17 +60,18 @@ class RNN(nn.Module):
         output = self.sigmoid(output)
         return output.reshape(RNN.batch_size) # Vector/Tensor of shape (batch_size)
 
-    def fit(self, X, y, E = 10):
+    def fit(self, X, y, E = 1):
         L = []
         assert X.shape[0] == y.shape[0]
         optimizer = Adam(self.parameters())
         loss = nn.BCELoss()
+        print(X.shape)
         num_batches = X.shape[0] // RNN.batch_size
         X = X[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size, 128)
         y = y[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size)
-        for e in tqdm(range(E)):
+        for e in range(E):
             losses = []
-            for i in range(num_batches):
+            for i in tqdm(range(num_batches)):
                 optimizer.zero_grad()
                 pred = self.forward(X[i])
                 cross_entropy_loss = loss(pred, y[i])
@@ -77,9 +79,8 @@ class RNN(nn.Module):
                 optimizer.step() 
                 losses.append(cross_entropy_loss.item())
             L.append(np.mean(losses))
-        plt.plot(L)
-        plt.show()
-
+        return L
+		
 def main():
     
     data_dir = '../data/npys'
@@ -87,7 +88,6 @@ def main():
     with open(f"{data_dir}/{samples[0]}", 'rb') as f:
         D = np.load(f)
         X, y = D[: , :-1], D[: , -1]
-        ic(X, y)       
     rnn = RNN(128)
 
     rnn.fit(X, y)
