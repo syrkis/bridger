@@ -15,25 +15,22 @@ import os
 import time
 import json
 from matplotlib import pyplot as plt
+from sklearn.metrics import classification_report
 import logging
-FORMAT = '%(name)s: %(asctime)s %(message)s'
-timeformat = '%m-%d %H:%M:%S'
-logging.basicConfig(format=FORMAT, datefmt=timeformat, level=logging.INFO, stream=sys.stdout)
-logger = logging.getLogger('model')
-logger.info("STARTING LOADING")
 
+logger = logging.getLogger('model')
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # globals 
 model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
-
-
 
 # declare nn
 class RNN(nn.Module):
         
     lstm_layers = 2
     bidirectional = True
-    batch_size = 32
+    batch_size = 128
     hidden_dim = 32
 
     def __init__(self, sentence_len):
@@ -66,21 +63,22 @@ class RNN(nn.Module):
         output = self.sigmoid(output)
         return output.reshape(RNN.batch_size) # Vector/Tensor of shape (batch_size)
 
-    def fit(self, X, y, E = 4):
+    def fit(self, X, y, E = 1):
         L = []
         assert X.shape[0] == y.shape[0]
         optimizer = Adam(self.parameters())
         loss = nn.BCELoss()
         logger.info(X.shape)
-        num_batches = X.shape[0] // RNN.batch_size
-        X = X[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size, 128)
-        y = y[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size)
+        X_batches = torch.split(X,RNN.batch_size)
+        y_batches = torch.split(y,RNN.batch_size)
         for e in range(E):
             losses = []
-            for i in tqdm(range(num_batches)):
+            for i in tqdm(range(len(X_batches))):
+                X_batch = X_batches[i].to(device)
+                y_batch = y_batches[i].to(device)
                 optimizer.zero_grad()
-                pred = self.forward(X[i])
-                cross_entropy_loss = loss(pred, y[i])
+                pred = self.forward(X_batch)
+                cross_entropy_loss = loss(pred, y_batch)
                 cross_entropy_loss.backward()    
                 optimizer.step() 
                 losses.append(cross_entropy_loss.item())
@@ -88,15 +86,15 @@ class RNN(nn.Module):
         return L
       
 def main(): 
-  
-    data_dir = '../data/npys'
-    samples = os.listdir(data_dir)
-    with open(f"{data_dir}/{samples[0]}", 'rb') as f:
-        D = np.load(f)
-        X, y = D[: , :-1], D[: , -1]
-    rnn = RNN(128)
-
-    rnn.fit(X, y)
+    logger.info(f'is using {device}')
+    D = torch.tensor(np.load('data/npys/Books.npy')).to(device)
+    train, test = D[:9 * 10 ** 5], D[9 * 10 ** 5:]
+    X_train, y_train = train[:, :128], train[:, -1].float()
+    X_test, y_test = test[:, :128], test[:, -1].float()
+    model = RNN(128).to(device) 
+    L = model.fit(X_train, y_train)
+    P = model.forward(X_test) > 0.5
+    logger.info(classification_report(y_test, P))
 
 if __name__ == '__main__':
     main()

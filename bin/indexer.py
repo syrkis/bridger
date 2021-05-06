@@ -61,12 +61,6 @@ def truncating(sample):
 # call stack
 def main(file_path):
 	name = os.path.basename(file_path)[:-8]
-	FORMAT = '%(name)s: %(asctime)s %(message)s'
-	timeformat = '%m-%d %H:%M:%S'
-	logging.basicConfig(format=FORMAT,
-						datefmt=timeformat,
-						level=logging.INFO,
-						stream=sys.stdout)
 	logger = logging.getLogger(name)
 	logger.info("STARTING LOADING")
 
