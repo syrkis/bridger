@@ -63,7 +63,9 @@ def get_data(file_path,logger):
     logger.info("STARTING LOADING")
     neg_reviews_idxs = []
     pos_reviews_idxs = []
-    for i,review in enumerate(parse(file_path)):
+    hard_limit = 10000000 # 10 mil
+    for i,review in tqdm(enumerate(parse(file_path))):
+        if i >= hard_limit: break
         if review['overall'] < 4:
             neg_reviews_idxs.append(i)
         else:
@@ -74,9 +76,10 @@ def get_data(file_path,logger):
     del neg_reviews_idxs
     pos_idxs = set(random.sample(pos_reviews_idxs,to_sample))
     del pos_reviews_idxs
-
+    print()  # For formatting for the tqdm loaders
     data = []
-    for i, review in enumerate(parse(file_path)):
+    for i, review in tqdm(enumerate(parse(file_path))):
+        if i >= hard_limit: break
         if i in neg_idxs or i in pos_idxs:
             data.append(review)
     logger.info(f"DATA IS LOADED OF SIZE {len(data)}")
@@ -114,7 +117,7 @@ def run(file_path):
 # call stack
 def main():
     data_path = '/home/common/datasets/amazon_review_data_2018/reviews'
-    for file_name in os.listdir(data_path):
+    for file_name in sorted(os.listdir(data_path)):
         run(data_path + "/" + file_name)
 
 if __name__ == "__main__":

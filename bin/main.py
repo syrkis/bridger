@@ -1,7 +1,8 @@
 # imports
 import sys
 import logging
-import indexer
+from tqdm import tqdm
+from reader import parse
 
 FORMAT = '%(name)s: %(asctime)s %(message)s'
 timeformat = '%m-%d %H:%M:%S'
@@ -12,5 +13,4 @@ logging.basicConfig(format=FORMAT,
 logger = logging.getLogger('MAIN')
 import sentiment
 
-#sentiment.main()
-indexer.main()
+sentiment.main()

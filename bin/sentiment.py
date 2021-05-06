@@ -16,6 +16,7 @@ import time
 import json
 from matplotlib import pyplot as plt
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 import logging
 
 logger = logging.getLogger('model')
@@ -64,12 +65,17 @@ class RNN(nn.Module):
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
 
-    def fit(self, X, y, E = 1):
-        L = []
+    def fit(self, X, y, x_dev = None, y_dev = None, E = 1):
         assert X.shape[0] == y.shape[0]
+        assert type(x_dev) == type(y_dev)
+        logger.info(X.shape)
         optimizer = Adam(self.parameters())
         loss = nn.BCELoss()
-        logger.info(X.shape)
+        logger.info("INITIAL LOSS")
+        L = [loss(self.predict_proba(X), y).item()]
+        if x_dev is not None:
+            L_dev = [loss(self.predict_proba(x_dev), y_dev).item()]
+        logger.info("FINISH INITIAL LOSS")
         X_batches = torch.split(X,RNN.batch_size)
         if X_batches[-1].shape[0] != RNN.batch_size:
             X_batches = X_batches[:-1]
@@ -88,35 +94,45 @@ class RNN(nn.Module):
                 torch.cuda.empty_cache()
             logger.info(f"EPOCH LOSS: {np.mean(losses)}")
             L.append(np.mean(losses))
+            if x_dev is not None:
+                L_dev.append(loss(self.predict_proba(x_dev),y_dev).item())
+        if x_dev is not None:
+            return L, L_dev
         return L
 
     def predict(self,X):
-        with torch.no_grad():
-            tmp = self.predict_proba(X)
-            print(type(tmp))
-            return tmp > 0.5
+        return self.predict_proba(X) > 0.5
         
 
     def predict_proba(self,X):
-        predict_batch_size = 2**12
-        X_batches = torch.split(X,predict_batch_size)
-        probas = []
-        for batch in X_batches:
-            prob = self.forward(batch.to(device)).cpu()
-            probas.append(prob)
-            torch.cuda.empty_cache()
-        return torch.cat(probas,dim=0) 
+        with torch.no_grad():
+            predict_batch_size = 2**10
+            X_batches = torch.split(X,predict_batch_size)
+            probas = []
+            for batch in tqdm(X_batches):
+                prob = self.forward(batch.to(device)).cpu()
+                probas.append(prob)
+                torch.cuda.empty_cache()
+            return torch.cat(probas,dim=0) 
       
 def main(): 
     logger.info(f'is using {device}')
     D = torch.tensor(np.load('data/npys/Books.npy'))
-    train, test = D[:9 * 10 ** 5], D[9 * 10 ** 5:]
-    X_train, y_train = train[:, :128], train[:, -1].float()
-    X_test, y_test = test[:, :128], test[:, -1].float()
+    x, y = D[:,:128] , D[:,-1].float()
+    x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
+    x_train, x_dev, y_train, y_dev = train_test_split(x_train,y_train, test_size=10**5)
     model = RNN(128).to(device) 
-    L = model.fit(X_train, y_train, E=3)
-
-    P = model.predict(X_test)
+    L, L_dev = model.fit(x_train, y_train, x_dev, y_dev, E=30)
+    try:
+        logger.info(f"L is: {str(L)}")
+        logger.info(f"L_dev is: {str(L_dev)}")
+        with open('/home/timp/repositories/bringo/data/train_losses.csv',"w") as of:
+            of.write(",".join(map(str,L))) 
+            of.write("\n")
+            of.write(",".join(map(str,L_dev))) 
+    except:
+        pass
+    P = model.predict(x_test)
     print("\n",classification_report(y_test, P),"\n")
 
 if __name__ == '__main__':
