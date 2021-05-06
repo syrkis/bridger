@@ -1,6 +1,7 @@
 # imports
 import sys
 import logging
+import indexer
 
 FORMAT = '%(name)s: %(asctime)s %(message)s'
 timeformat = '%m-%d %H:%M:%S'
@@ -11,4 +12,5 @@ logging.basicConfig(format=FORMAT,
 logger = logging.getLogger('MAIN')
 import sentiment
 
-sentiment.main()
+#sentiment.main()
+indexer.main()

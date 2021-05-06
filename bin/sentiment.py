@@ -30,7 +30,7 @@ class RNN(nn.Module):
         
     lstm_layers = 2
     bidirectional = True
-    batch_size = 128
+    batch_size = 32
     hidden_dim = 32
 
     def __init__(self, sentence_len):
@@ -52,16 +52,17 @@ class RNN(nn.Module):
         # Sigmoid layer
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, batch):
-        X = self.embedding(batch) 
+    def forward(self, inp):
+        N_samples = inp.shape[0]
+        X = self.embedding(inp) 
         X, _ = self.lstm(X)
 
         # Makes all of features for a sample into 1 vector
-        X = X.reshape(RNN.batch_size,-1)
+        X = X.reshape(N_samples,-1)
         output = self.linear(X)
 
         output = self.sigmoid(output)
-        return output.reshape(RNN.batch_size) # Vector/Tensor of shape (batch_size)
+        return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
 
     def fit(self, X, y, E = 1):
         L = []
@@ -70,6 +71,8 @@ class RNN(nn.Module):
         loss = nn.BCELoss()
         logger.info(X.shape)
         X_batches = torch.split(X,RNN.batch_size)
+        if X_batches[-1].shape[0] != RNN.batch_size:
+            X_batches = X_batches[:-1]
         y_batches = torch.split(y,RNN.batch_size)
         for e in range(E):
             losses = []
@@ -82,19 +85,39 @@ class RNN(nn.Module):
                 cross_entropy_loss.backward()    
                 optimizer.step() 
                 losses.append(cross_entropy_loss.item())
+                torch.cuda.empty_cache()
+            logger.info(f"EPOCH LOSS: {np.mean(losses)}")
             L.append(np.mean(losses))
         return L
+
+    def predict(self,X):
+        with torch.no_grad():
+            tmp = self.predict_proba(X)
+            print(type(tmp))
+            return tmp > 0.5
+        
+
+    def predict_proba(self,X):
+        predict_batch_size = 2**12
+        X_batches = torch.split(X,predict_batch_size)
+        probas = []
+        for batch in X_batches:
+            prob = self.forward(batch.to(device)).cpu()
+            probas.append(prob)
+            torch.cuda.empty_cache()
+        return torch.cat(probas,dim=0) 
       
 def main(): 
     logger.info(f'is using {device}')
-    D = torch.tensor(np.load('data/npys/Books.npy')).to(device)
+    D = torch.tensor(np.load('data/npys/Books.npy'))
     train, test = D[:9 * 10 ** 5], D[9 * 10 ** 5:]
     X_train, y_train = train[:, :128], train[:, -1].float()
     X_test, y_test = test[:, :128], test[:, -1].float()
     model = RNN(128).to(device) 
-    L = model.fit(X_train, y_train)
-    P = model.forward(X_test) > 0.5
-    logger.info(classification_report(y_test, P))
+    L = model.fit(X_train, y_train, E=3)
+
+    P = model.predict(X_test)
+    print("\n",classification_report(y_test, P),"\n")
 
 if __name__ == '__main__':
     main()
