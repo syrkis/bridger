@@ -5,6 +5,7 @@
 # imports
 import torch
 from torch import nn
+import sys
 import gensim
 from torch.optim import Adam
 import random
@@ -15,6 +16,11 @@ import time
 import json
 from matplotlib import pyplot as plt
 import logging
+FORMAT = '%(name)s: %(asctime)s %(message)s'
+timeformat = '%m-%d %H:%M:%S'
+logging.basicConfig(format=FORMAT, datefmt=timeformat, level=logging.INFO, stream=sys.stdout)
+logger = logging.getLogger('model')
+logger.info("STARTING LOADING")
 
 
 # globals 
@@ -60,12 +66,12 @@ class RNN(nn.Module):
         output = self.sigmoid(output)
         return output.reshape(RNN.batch_size) # Vector/Tensor of shape (batch_size)
 
-    def fit(self, X, y, E = 1):
+    def fit(self, X, y, E = 4):
         L = []
         assert X.shape[0] == y.shape[0]
         optimizer = Adam(self.parameters())
         loss = nn.BCELoss()
-        print(X.shape)
+        logger.info(X.shape)
         num_batches = X.shape[0] // RNN.batch_size
         X = X[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size, 128)
         y = y[:RNN.batch_size * num_batches].reshape(num_batches, RNN.batch_size)
@@ -80,9 +86,9 @@ class RNN(nn.Module):
                 losses.append(cross_entropy_loss.item())
             L.append(np.mean(losses))
         return L
-		
-def main():
-    
+      
+def main(): 
+  
     data_dir = '../data/npys'
     samples = os.listdir(data_dir)
     with open(f"{data_dir}/{samples[0]}", 'rb') as f:

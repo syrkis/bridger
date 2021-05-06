@@ -5,7 +5,7 @@ From: dppereyra/default/python:3.7.3-debian
     bin/
 
 %post
-    pip install numpy torch scikit-learn seaborn matplotlib scipy pandas nltk gensim
+    pip install numpy torch scikit-learn seaborn matplotlib scipy pandas nltk gensim python-Levenshtein torchsummary
 
 %runscript
     python bin/main.py

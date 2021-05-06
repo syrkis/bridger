@@ -1,2 +1,4 @@
 # imports
-import test_run
+from test_run import test_run
+
+test_run()
