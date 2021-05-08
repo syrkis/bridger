@@ -29,10 +29,15 @@ model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', bina
 # declare nn
 class RNN(nn.Module):
         
-    lstm_layers = 2
-    bidirectional = True
     batch_size = 32
-    hidden_dim = 32
+
+    lstm_layers = 3
+    lstm_dropout = 0.4
+    bidirectional = True
+    lstm_hid_dim = 32
+
+    lin_hid_dim = 250
+    lin_dropout = 0.4
 
     def __init__(self, sentence_len):
         super(RNN, self).__init__()
@@ -44,12 +49,16 @@ class RNN(nn.Module):
         emb_dim = emb_weights.shape[1]
 
         # LSTM layer(s)
-        self.lstm = nn.LSTM(emb_dim, RNN.hidden_dim, RNN.lstm_layers, bidirectional=RNN.bidirectional, batch_first=True)
+        self.lstm = nn.LSTM(emb_dim, RNN.lstm_hid_dim, RNN.lstm_layers, dropout = RNN.lstm_dropout, bidirectional=RNN.bidirectional, batch_first=True)
 
         # Linear layer
         dirs = 2 if RNN.bidirectional else 1
-        self.linear = nn.Linear(self.sentence_len*dirs*RNN.hidden_dim,1)
+        self.lin1 = nn.Linear(self.sentence_len*dirs*RNN.lstm_hid_dim, RNN.lin_hid_dim)
+        
+        self.dropout = nn.Dropout(p=RNN.lin_dropout)
 
+        self.lin2 = nn.Linear(RNN.lin_hid_dim,1)
+        
         # Sigmoid layer
         self.sigmoid = nn.Sigmoid()
 
@@ -60,8 +69,10 @@ class RNN(nn.Module):
 
         # Makes all of features for a sample into 1 vector
         X = X.reshape(N_samples,-1)
-        output = self.linear(X)
+        X = self.lin1(X)
 
+        X = self.dropout(X)
+        output = self.lin2(X)
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
 
@@ -92,7 +103,7 @@ class RNN(nn.Module):
                 optimizer.step() 
                 losses.append(cross_entropy_loss.item())
                 torch.cuda.empty_cache()
-            logger.info(f"EPOCH LOSS: {np.mean(losses)}")
+            logger.info(f"EPOCH {e} LOSS: {np.mean(losses)}")
             L.append(np.mean(losses))
             if x_dev is not None:
                 L_dev.append(loss(self.predict_proba(x_dev),y_dev).item())
@@ -105,18 +116,31 @@ class RNN(nn.Module):
         
 
     def predict_proba(self,X):
+        self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
-            predict_batch_size = 2**10
-            X_batches = torch.split(X,predict_batch_size)
+            if device == 'cuda':
+                res = torch.cuda.memory_reserved(0)
+                alo = torch.cuda.memory_allocated(0)
+                free_mem = res - alo
+                logger.info(f"free memory {free_mem}")
+                row_mem = X.element_size() * X.shape[1]
+                pred_batch_size = (free_mem*0.9) //row_mem
+                logger.info(f"batch size for predictions is: {pred_batch_size}")
+                print(f"batch size for predictions is: {pred_batch_size}")
+            else:
+                pred_batch_size = 2**11
+            X_batches = torch.split(X,pred_batch_size)
             probas = []
             for batch in tqdm(X_batches):
                 prob = self.forward(batch.to(device)).cpu()
                 probas.append(prob)
                 torch.cuda.empty_cache()
             return torch.cat(probas,dim=0) 
+        self.train() # sets model back to training mode which is default
       
 def main(): 
     logger.info(f'is using {device}')
+    logger.info(f"dropout is set to {RNN.lstm_dropout}")
     D = torch.tensor(np.load('data/npys/Books.npy'))
     x, y = D[:,:128] , D[:,-1].float()
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
@@ -126,7 +150,7 @@ def main():
     try:
         logger.info(f"L is: {str(L)}")
         logger.info(f"L_dev is: {str(L_dev)}")
-        with open('/home/timp/repositories/bringo/data/train_losses.csv',"w") as of:
+        with open('/home/timp/repositories/bringo/data/train_losses_04_drop.csv',"w") as of:
             of.write(",".join(map(str,L))) 
             of.write("\n")
             of.write(",".join(map(str,L_dev))) 
