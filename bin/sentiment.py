@@ -32,12 +32,12 @@ class RNN(nn.Module):
     batch_size = 32
 
     lstm_layers = 3
-    lstm_dropout = 0.4
+    lstm_dropout = 0.25
     bidirectional = True
     lstm_hid_dim = 32
 
     lin_hid_dim = 250
-    lin_dropout = 0.4
+    lin_dropout = 0.25
 
     def __init__(self, sentence_len):
         super(RNN, self).__init__()
@@ -135,8 +135,8 @@ class RNN(nn.Module):
                 prob = self.forward(batch.to(device)).cpu()
                 probas.append(prob)
                 torch.cuda.empty_cache()
+            self.train() # sets model back to training mode which is default
             return torch.cat(probas,dim=0) 
-        self.train() # sets model back to training mode which is default
       
 def main(): 
     logger.info(f'is using {device}')
@@ -150,7 +150,7 @@ def main():
     try:
         logger.info(f"L is: {str(L)}")
         logger.info(f"L_dev is: {str(L_dev)}")
-        with open('/home/timp/repositories/bringo/data/train_losses_04_drop.csv',"w") as of:
+        with open('/home/timp/repositories/bringo/data/train_losses_025_drop.csv',"w") as of:
             of.write(",".join(map(str,L))) 
             of.write("\n")
             of.write(",".join(map(str,L_dev))) 
