@@ -39,7 +39,7 @@ class TNN(nn.Module):
         self.lin = nn.Linear(self.sentence_len, 1)
         self.sigmoid = nn.Sigmoid()
 
-        self.logger.info(f"IS USING {self.device}")
+        self.logger.info(f"Model is using '{self.device}' for training")
         self.to(self.device)
 
     def forward(self, X):
