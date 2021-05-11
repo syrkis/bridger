@@ -39,7 +39,7 @@ class RNN(nn.Module):
 
     def forward(self, X):
         N_samples = X.shape[0]
-
+        X = X.float()
         output = self.lin(X)
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
@@ -57,7 +57,6 @@ class RNN(nn.Module):
             L_dev = [loss(self.predict_proba(x_dev), y_dev).item()]
         logger.info("FINISH INITIAL LOSS")
 
-        X = X.float()
         X_batches = torch.split(X,RNN.batch_size)
         if X_batches[-1].shape[0] != RNN.batch_size:
             X_batches = X_batches[:-1]
