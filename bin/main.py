@@ -11,6 +11,5 @@ logging.basicConfig(format=FORMAT,
                     level=logging.INFO,
                     stream=sys.stdout)
 logger = logging.getLogger('MAIN')
-import sentiment
-
-sentiment.main()
+import self_training
+self_training.main()

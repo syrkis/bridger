@@ -21,21 +21,23 @@ import logging
 
 logger = logging.getLogger('model')
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # declare nn
-class RNN(nn.Module):
+class TNN(nn.Module):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
     batch_size = 128
 
     def __init__(self, sentence_len):
-        super(RNN, self).__init__()
+        super(TNN, self).__init__()
         self.best_state_dict = {}
         self.state_dict_score = float('inf')
         self.sentence_len = sentence_len
-        
         self.lin = nn.Linear(self.sentence_len, 1)
         self.sigmoid = nn.Sigmoid()
+
+        self.to(self.device)
+        logger.info(f"IS USING {self.device}")
 
     def forward(self, X):
         N_samples = X.shape[0]
@@ -57,16 +59,16 @@ class RNN(nn.Module):
             L_dev = [loss(self.predict_proba(x_dev), y_dev).item()]
         logger.info("FINISH INITIAL LOSS")
 
-        X_batches = torch.split(X,RNN.batch_size)
-        if X_batches[-1].shape[0] != RNN.batch_size:
+        X_batches = torch.split(X,TNN.batch_size)
+        if X_batches[-1].shape[0] != TNN.batch_size:
             X_batches = X_batches[:-1]
-        y_batches = torch.split(y,RNN.batch_size)
+        y_batches = torch.split(y,TNN.batch_size)
 
         for e in range(E):
             losses = []
             for i in tqdm(range(len(X_batches))):
-                X_batch = X_batches[i].to(device)
-                y_batch = y_batches[i].to(device)
+                X_batch = X_batches[i].to(self.device)
+                y_batch = y_batches[i].to(self.device)
                 optimizer.zero_grad()
                 pred = self.forward(X_batch)
                 cross_entropy_loss = loss(pred, y_batch)
@@ -93,7 +95,7 @@ class RNN(nn.Module):
     def predict_proba(self,X):
         self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
-            if str(device) == 'cuda':
+            if str(self.device) == 'cuda':
                 res = torch.cuda.memory_reserved(0)
                 alo = torch.cuda.memory_allocated(0)
                 free_mem = res - alo
@@ -101,13 +103,12 @@ class RNN(nn.Module):
                 row_mem = X.element_size() * X.shape[1]
                 pred_batch_size = int((free_mem*0.9) //row_mem)
                 logger.info(f"batch size for predictions is: {pred_batch_size}")
-                print(f"batch size for predictions is: {pred_batch_size}")
             else:
                 pred_batch_size = 2**11
             X_batches = torch.split(X,pred_batch_size)
             probas = []
             for batch in tqdm(X_batches):
-                prob = self.forward(batch.to(device)).cpu()
+                prob = self.forward(batch.to(self.device)).cpu()
                 probas.append(prob)
                 torch.cuda.empty_cache()
             self.train() # sets model back to training mode which is default
@@ -121,12 +122,12 @@ class RNN(nn.Module):
         
       
 def main(): 
-    logger.info(f'is using {device}')
+    logger.info(f'is using {TNN.device}')
     D = torch.tensor(np.load('data/npys/Books.npy'))
     x, y = D[:,:128] , D[:,-1].float()
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
     x_train, x_dev, y_train, y_dev = train_test_split(x_train,y_train, test_size=10**5)
-    model = RNN(128).to(device) 
+    model = TNN(128).to(TNN.device) 
     L, L_dev = model.fit(x_train, y_train, x_dev, y_dev, E=7)
     try:
         logger.info(f"L is: {str(L)}")
@@ -135,7 +136,7 @@ def main():
             of.write(",".join(map(str,L))) 
             of.write("\n")
             of.write(",".join(map(str,L_dev))) 
-        model.save('data/models/RNN025.pt')
+        model.save('data/models/TNN025.pt')
     except Exception as e:
         logger.info('error occurred:\n\t-' + str(e))
         pass

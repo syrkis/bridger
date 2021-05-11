@@ -1,100 +1,51 @@
-# self_training.py
-#	framework for self training
-# by: Group 2
 
-from sklearn.base import BaseEstimator, ClassifierMixin, clone
-from sklearn.exceptions import NotFittedError
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from sklearn.semi_supervised import SelfTrainingClassifier
-
-from sklearn.svm import SVC
-
-import numpy as np
-from icecream import ic
 from copy import deepcopy
-import os
+from tiny_model import TNN
+import numpy as np
+import logging
+import torch
 
-import sentiment
+logger = logging.getLogger("selfTrain")
+class selfTrain():
 
-SEQUENCE_LENGTH = 128
-PSUEDO_SELF_TRAIN = False
-
-
-class RNNEstimator(BaseEstimator, ClassifierMixin):
-    """
-    Wrapper for the RNN model implementing a variation of the scikit-learn API.
-    Specifically, the re_fit method is a variation of fit that violates the standard
-    convention of ignoring previous calls to the method.
-    """
-
-    def __init__(self,sequence_length=1):
-        self.sequence_length = sequence_length
-        self.base_model = sentiment.RNN(self.sequence_length)
-
+    def __init__(self,base_estimator, tol = 0.95):
+        self.base_estimator = base_estimator
+        self.tol = tol
+    
     def fit(self,X,y):
-        X,y = check_X_y(X,y)
-        self.estimator_ = deepcopy(self.base_model)
-        self.estimator_.fit(X,y,E=1)
-        return self
+        """
+        X has data from both
+        y has labels for all, but -1 is for no label
+        """
+        estimator = deepcopy(self.base_estimator)
 
-    def re_fit(self,X,y):
-        X,y = check_X_y(X,y)
-        try:
-            check_is_fitted(self)
-        except NotFittedError:
-            self.estimator_ = deepcopy(self.base_model)
-        
-        self.estimator_.fit(X,y,E=1)
-        return self
+        mask = y == -1
+        prev = 0
+        unlabelled = sum(mask)
 
-    def predict(self,X):
-        check_is_fitted(self)
-        X = check_array(X)
-        return self.estimator_.forward(X) >= 0.5
+        while prev != unlabelled:
+            logger.info("START ITERATION")
+            labelled_X = X[~mask]
+            labels = y[~mask]
+            logger.info("START ESTIMATOR FIT")
+            estimator.fit(labelled_X, labels, E=5)
+            predictions = estimator.predict_proba(X[mask])
+            to_label = predictions > self.tol or predictions < (1-self.tol)
+            y[mask][to_label] = predictions[to_label]
 
-    def predict_proba(self,X):
-        check_is_fitted(self)
-        X = check_array(X)
-        return self.estimator_.forward(X)
-
-
-class PseudoSelfTrainingClassifier(SelfTrainingClassifier):
-    def __init__(self, *args, **kwargs):
-        super(PseudoSelfTrainingClassifier, self).__init__(*args, **kwargs)
-        self.base_estimator = clone(self.base_estimator)
-        self.base_estimator.fit = self.base_estimator.re_fit
-
-
-def self_train(estimator,l_X,l_y,u_X,):
-    STC = SelfTrainingClassifier(estimator,max_iter=10)
-    if PSUEDO_SELF_TRAIN:
-        STC = PseudoSelfTrainingClassifier(estimator,max_iter=None)
-
-    u_y = np.array(u_X.shape[0]*[-1])
-    X = np.concatenate((l_X,u_X))
-    y = np.concatenate((l_y,u_y))
-    STC.fit(X,y)
-    return STC.base_estimator_
-
-
+            prev = unlabelled
+            mask = y == -1
+            unlabelled = sum(mask)
+            logger.info(f"{prev} , {unlabelled}")
+            
 def main():
-    data_dir = '../data/npys'
-    samples = os.listdir(data_dir)
-    with open(f"{data_dir}/{samples[0]}", 'rb') as f:
-        print(f"Labelled data from {samples[0]}")
-        D = np.load(f)
-        X, y = D[: , :SEQUENCE_LENGTH], D[: , -1]
-
-    with open(f"{data_dir}/{samples[1]}", 'rb') as f:
-        print(f"Unlabelled data from {samples[1]}")
-        D = np.load(f)
-        u_X, u_y = D[: , :SEQUENCE_LENGTH], D[: , -1]
-
-    model = SVC(probability=True, gamma="auto")
-    #model = RNNEstimator(sequence_length=SEQUENCE_LENGTH)
-    self_trained_model = self_train(model,X,y,u_X)
-
-    ic(self_trained_model.predict_proba(X[:32]))
+    clf = TNN(128)
+    ST = selfTrain(clf)
+    source = torch.tensor(np.load('data/npys/Books.npy'))
+    target = torch.tensor(np.load('data/npys/All_Beauty.npy'))
+    X = torch.cat((source[:,:128],target[:,:128]),dim=0)
+    y = torch.cat((source[:,-1],-torch.ones([target.shape[0]])),dim=0)
+    ST.fit(X,y)
 
 
 if __name__ == '__main__':
