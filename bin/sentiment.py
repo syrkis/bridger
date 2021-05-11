@@ -20,16 +20,16 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import logging
 
-logger = logging.getLogger('model')
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# globals 
-model = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
 
 # declare nn
 class RNN(nn.Module):
+    # General
+    logger = logging.getLogger('RNN')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    word2vec = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
         
+    # Model variables
+    sentence_len = 128
     batch_size = 12
 
     lstm_layers = 3
@@ -40,34 +40,38 @@ class RNN(nn.Module):
     lin_hid_dim = 250
     lin_dropout = 0.25
 
-    def __init__(self, sentence_len):
+    def __init__(self):
         super(RNN, self).__init__()
         self.best_state_dict = {}
         self.state_dict_score = float('inf')
-        self.sentence_len = sentence_len
+        self.train_loss = []
+        self.dev_loss = []
 
         # Embedding
-        emb_weights = torch.FloatTensor(model.vectors)
+        emb_weights = torch.FloatTensor(self.word2vec.vectors)
         self.embedding = nn.Embedding.from_pretrained(emb_weights)  
         emb_dim = emb_weights.shape[1]
 
         # LSTM layer(s)
-        self.lstm = nn.LSTM(emb_dim, RNN.lstm_hid_dim, RNN.lstm_layers, dropout = RNN.lstm_dropout, bidirectional=RNN.bidirectional, batch_first=True)
+        self.lstm = nn.LSTM(emb_dim, self.lstm_hid_dim, self.lstm_layers, dropout = self.lstm_dropout, bidirectional=self.bidirectional, batch_first=True)
 
         # Linear layer
-        dirs = 2 if RNN.bidirectional else 1
-        self.lin1 = nn.Linear(self.sentence_len*dirs*RNN.lstm_hid_dim, RNN.lin_hid_dim)
+        dirs = 2 if self.bidirectional else 1
+        self.lin1 = nn.Linear(self.sentence_len*dirs*self.lstm_hid_dim, self.lin_hid_dim)
         
-        self.dropout = nn.Dropout(p=RNN.lin_dropout)
+        self.dropout = nn.Dropout(p=self.lin_dropout)
 
-        self.lin2 = nn.Linear(RNN.lin_hid_dim,1)
+        self.lin2 = nn.Linear(self.lin_hid_dim,1)
         
         # Sigmoid layer
         self.sigmoid = nn.Sigmoid()
+        
+        self.logger.info(f"Model is using '{self.device}' for training")
+        self.to(self.device)
 
-    def forward(self, inp):
-        N_samples = inp.shape[0]
-        X = self.embedding(inp) 
+    def forward(self, X):
+        N_samples = X.shape[0]
+        X = self.embedding(X) 
         X, _ = self.lstm(X)
 
         # Makes all of features for a sample into 1 vector
@@ -79,29 +83,29 @@ class RNN(nn.Module):
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
 
-    def fit(self, X, y, x_dev = None, y_dev = None, E = 1):
+    def fit(self, X, y, E = 1, dev_size = None):
         assert X.shape[0] == y.shape[0]
-        assert type(x_dev) == type(y_dev)
-        logger.info(X.shape)
+        self.logger.info("Started training")
+        if dev_size:
+            X, x_dev, y, y_dev = train_test_split(X,y, test_size=dev_size)
+
         optimizer = Adam(self.parameters())
         loss = nn.BCELoss()
 
-        logger.info("INITIAL LOSS")
-        L = [loss(self.predict_proba(X), y).item()]
-        if x_dev is not None:
-            L_dev = [loss(self.predict_proba(x_dev), y_dev).item()]
-        logger.info("FINISH INITIAL LOSS")
+        self.train_loss.append(loss(self.predict_proba(X), y).item())
+        if dev_size:
+            self.dev_loss.append(loss(self.predict_proba(x_dev), y_dev).item())
 
-        X_batches = torch.split(X,RNN.batch_size)
-        if X_batches[-1].shape[0] != RNN.batch_size:
+        X_batches = torch.split(X,self.batch_size)
+        if X_batches[-1].shape[0] != self.batch_size:
             X_batches = X_batches[:-1]
-        y_batches = torch.split(y,RNN.batch_size)
+        y_batches = torch.split(y,self.batch_size)
 
         for e in range(E):
             losses = []
             for i in tqdm(range(len(X_batches))):
-                X_batch = X_batches[i].to(device)
-                y_batch = y_batches[i].to(device)
+                X_batch = X_batches[i].to(self.device)
+                y_batch = y_batches[i].to(self.device)
                 optimizer.zero_grad()
                 pred = self.forward(X_batch)
                 cross_entropy_loss = loss(pred, y_batch)
@@ -110,17 +114,15 @@ class RNN(nn.Module):
                 losses.append(cross_entropy_loss.item())
                 torch.cuda.empty_cache()
 
-            logger.info(f"EPOCH {e} LOSS: {np.mean(losses)}")
-            L.append(np.mean(losses))
-            if x_dev is not None:
-                L_dev.append(loss(self.predict_proba(x_dev),y_dev).item())
-                if L_dev[-1] > self.state_dict_score:
-                    self.state_dict_score = L_dev[-1]
+            self.logger.info(f"Epoch {e} loss: {np.mean(losses)}")
+            self.train_loss.append(np.mean(losses))
+            if dev_size:
+                self.dev_loss.append(loss(self.predict_proba(x_dev),y_dev).item())
+                if self.dev_loss[-1] > self.state_dict_score:
+                    self.state_dict_score = self.dev_loss[-1]
                     self.best_state_dict = deepcopy(self.state_dict())
 
-        if x_dev is not None:
-            return L, L_dev
-        return L
+        return
 
     def predict(self,X):
         return self.predict_proba(X) > 0.5
@@ -129,53 +131,48 @@ class RNN(nn.Module):
     def predict_proba(self,X):
         self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
-            if str(device) == 'cuda':
+            if str(self.device) == 'cuda':
                 res = torch.cuda.memory_reserved(0)
                 alo = torch.cuda.memory_allocated(0)
                 free_mem = res - alo
-                logger.info(f"free memory {free_mem}")
                 row_mem = X.element_size() * X.shape[1]
                 pred_batch_size = (free_mem*0.9) //row_mem
-                logger.info(f"batch size for predictions is: {pred_batch_size}")
-                print(f"batch size for predictions is: {pred_batch_size}")
+                self.logger.info(f"Predicting with batches of size: {pred_batch_size}")
             else:
                 pred_batch_size = 2**11
             X_batches = torch.split(X,pred_batch_size)
             probas = []
             for batch in tqdm(X_batches):
-                prob = self.forward(batch.to(device)).cpu()
+                prob = self.forward(batch.to(self.device)).cpu()
                 probas.append(prob)
                 torch.cuda.empty_cache()
             self.train() # sets model back to training mode which is default
             return torch.cat(probas,dim=0) 
 
-    def save(path, save_current_state = False):
+    def save(self, path, save_current_state = False):
         if save_current_state or not self.best_state_dict:
             torch.save(self.state_dict(), path)
-            return
-        torch.save(self.best_state_dict, path)
+        else:
+            torch.save(self.best_state_dict, path)
+
+    def save_training_losses(self,path):
+        assert self.train_loss
+        with open(path,"w") as of:
+            of.write(','.join(map(str,self.train_loss)))
+            if self.dev_loss:
+                of.write('\n')
+                of.write(','.join(map(str,self.dev_loss)))
+
         
       
 def main(): 
-    logger.info(f'is using {device}')
-    logger.info(f"dropout is set to {RNN.lstm_dropout}")
     D = torch.tensor(np.load('data/npys/Books.npy'))
     x, y = D[:,:128] , D[:,-1].float()
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
-    x_train, x_dev, y_train, y_dev = train_test_split(x_train,y_train, test_size=10**5)
-    model = RNN(128).to(device) 
-    L, L_dev = model.fit(x_train, y_train, x_dev, y_dev, E=7)
-    try:
-        logger.info(f"L is: {str(L)}")
-        logger.info(f"L_dev is: {str(L_dev)}")
-        with open('/home/timp/repositories/bringo/data/train_losses_025_drop1.csv',"w") as of:
-            of.write(",".join(map(str,L))) 
-            of.write("\n")
-            of.write(",".join(map(str,L_dev))) 
-        model.save('/home/timp/repositories/bringo/data/models/RNN025.pt')
-    except Exception as e:
-        logger.info('error occurred:\n\t-' + str(e))
-        pass
+    model = RNN()
+    model.fit(x_train, y_train, E=1, dev_size = 10,)
+    model.save_training_losses('data/train_dev_loss.csv')
+    model.save('data/models/RNN025.pt')
     P = model.predict(x_test)
     print("\n",classification_report(y_test, P),"\n")
 
