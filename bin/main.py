@@ -3,7 +3,7 @@ import sys
 import logging
 from tqdm import tqdm
 from reader import parse
-import self_training
+import runner
 
 
 FORMAT = '%(name)s: %(asctime)s %(message)s'
@@ -13,4 +13,4 @@ logging.basicConfig(format=FORMAT,
                     level=logging.INFO,
                     stream=sys.stdout)
 logger = logging.getLogger('MAIN')
-self_training.main()
+runner.main()

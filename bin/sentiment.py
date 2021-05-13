@@ -131,15 +131,7 @@ class RNN(nn.Module):
     def predict_proba(self,X):
         self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
-            if str(self.device) == 'cuda':
-                res = torch.cuda.memory_reserved(0)
-                alo = torch.cuda.memory_allocated(0)
-                free_mem = res - alo
-                row_mem = X.element_size() * X.shape[1]
-                pred_batch_size = int((free_mem*0.9) // row_mem)
-                self.logger.info(f"Predicting with batches of size: {pred_batch_size}")
-            else:
-                pred_batch_size = 2**11
+            pred_batch_size = 2**12
             X_batches = torch.split(X,pred_batch_size)
             probas = []
             for batch in tqdm(X_batches):

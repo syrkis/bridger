@@ -25,7 +25,6 @@ import logging
 class TNN(nn.Module):
     logger = logging.getLogger('TNN')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    word2vec = gensim.models.KeyedVectors.load_word2vec_format('data/twitter.bin', binary=True)
         
     batch_size = 128
     sentence_len = 128
@@ -38,11 +37,7 @@ class TNN(nn.Module):
         self.dev_loss = []
 
         # Layers
-        emb_weights = torch.FloatTensor(self.word2vec.vectors)
-        self.embedding = nn.Embedding.from_pretrained(emb_weights)  
-        emb_dim = emb_weights.shape[1]
-
-        self.lin = nn.Linear(self.sentence_len*emb_dim, 1)
+        self.lin = nn.Linear(self.sentence_len, 1)
         self.sigmoid = nn.Sigmoid()
 
         self.logger.info(f"Model is using '{self.device}' for training")
@@ -50,13 +45,12 @@ class TNN(nn.Module):
 
     def forward(self, X):
         N_samples = X.shape[0]
-        X = self.embedding(X) 
-        X = X.reshape(N_samples,-1)
         output = self.lin(X)
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
 
     def fit(self, X, y, E = 1, dev_size = None):
+        X = X.float()
         assert X.shape[0] == y.shape[0]
         self.logger.info("Started training")
         if dev_size:
@@ -101,6 +95,7 @@ class TNN(nn.Module):
         return self.predict_proba(X) > 0.5
         
     def predict_proba(self,X):
+        X = X.float()
         self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
             if str(self.device) == 'cuda':
@@ -139,10 +134,10 @@ class TNN(nn.Module):
       
 def main(): 
     D = torch.tensor(np.load('data/npys/Books.npy'))
-    x, y = D[:,:128].float() , D[:,-1].float()
+    x, y = D[:,:128] , D[:,-1].float()
     x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
     model = TNN()
-    model.fit(x_train, y_train, E=10, dev_size = 0.1)
+    model.fit(x_train, y_train, E=5, dev_size = 0.1)
     model.save_training_losses('data/train_dev_loss.csv')
     model.save('data/models/RNN025.pt')
     P = model.predict(x_test)
