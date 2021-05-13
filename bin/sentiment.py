@@ -136,7 +136,7 @@ class RNN(nn.Module):
                 alo = torch.cuda.memory_allocated(0)
                 free_mem = res - alo
                 row_mem = X.element_size() * X.shape[1]
-                pred_batch_size = (free_mem*0.9) //row_mem
+                pred_batch_size = int((free_mem*0.9) // row_mem)
                 self.logger.info(f"Predicting with batches of size: {pred_batch_size}")
             else:
                 pred_batch_size = 2**11
