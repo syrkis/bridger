@@ -16,7 +16,7 @@ class selfTrain():
         self.base_state_dict = deepcopy(base_estimator.state_dict())
         self.tol = tol
     
-    def fit(self,X,y,max_iter=5):
+    def fit(self,X,y,max_iter=1):
         """
         X has data from both
         y has labels for all, but -1 is for no label
@@ -30,7 +30,7 @@ class selfTrain():
         unlabelled = torch.sum(mask).item()
 
         iteration = 0
-        while abs(prev - unlabelled) > 500 or iteration < max_iter:
+        while abs(prev - unlabelled) > 500 and iteration < max_iter:
             iteration += 1
             self.logger.info(f"Start iteration {iteration}")
             self.base_estimator.load_state_dict(self.base_state_dict)
@@ -72,7 +72,7 @@ def main():
     clf = RNN()
     ST = selfTrain(clf)
     source = torch.tensor(np.load('data/npys/Books.npy'))
-    target = torch.tensor(np.load('data/npys/All_Beauty.npy'))
+    target = torch.tensor(np.load('data/npys/Automotive.npy'))
     true_target_lab = deepcopy(target[:,-1])
     target[:,-1] = -1
     ST.logger.info('Joining data')

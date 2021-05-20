@@ -3,7 +3,8 @@ import sys
 import logging
 from tqdm import tqdm
 from reader import parse
-import runner
+import self_training
+import sentiment
 
 
 FORMAT = '%(name)s: %(asctime)s %(message)s'
@@ -13,4 +14,4 @@ logging.basicConfig(format=FORMAT,
                     level=logging.INFO,
                     stream=sys.stdout)
 logger = logging.getLogger('MAIN')
-runner.main()
+sentiment.main()
