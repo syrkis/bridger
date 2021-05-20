@@ -54,7 +54,7 @@ def truncating(sample):
     if len(sample_index) == sequence_length:
         return sample_index
 
-    final_index = [0]*(sequence_length-len(sample_index))
+    final_index = [model.key_to_index["<PAD>"]]*(sequence_length-len(sample_index))
     for index in sample_index:
         final_index.append(index)
     return final_index
@@ -63,15 +63,23 @@ def get_data(file_path,logger):
     logger.info("STARTING LOADING")
     neg_reviews_idxs = []
     pos_reviews_idxs = []
-    hard_limit = 10000000 # 10 mil
+    hard_limit = 10_000_000 # 10 mil
     for i,review in tqdm(enumerate(parse(file_path))):
+        rev_len = len(review.get("reviewText","").split())  
+        if rev_len > 128 or rev_len == 0:
+            continue 
+        if rev_len > 100 and len(word_tokenize(review.get("reviewText",""))) > 128:
+            continue
+
         if i >= hard_limit: break
-        if review['overall'] < 4:
+        if review['overall'] < 3:
             neg_reviews_idxs.append(i)
-        else:
+        elif review['overall'] > 3:
             pos_reviews_idxs.append(i)
 
     to_sample = min([len(pos_reviews_idxs), len(neg_reviews_idxs), MAX_REVIEWS//2])
+    if to_sample < 500_000:
+        return None
     neg_idxs = set(random.sample(neg_reviews_idxs,to_sample))
     del neg_reviews_idxs
     pos_idxs = set(random.sample(pos_reviews_idxs,to_sample))
@@ -89,6 +97,8 @@ def run(file_path):
     name = os.path.basename(file_path)[:-8]
     logger = logging.getLogger(name)
     data = get_data(file_path,logger)
+    if data is None:
+        return
     cpus = cpu_count()
     size_of_snip = len(data)//cpus 
     snippets = []

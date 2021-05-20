@@ -49,7 +49,7 @@ class RNN(nn.Module):
 
         # Embedding
         emb_weights = torch.FloatTensor(self.word2vec.vectors)
-        self.embedding = nn.Embedding.from_pretrained(emb_weights)  
+        self.embedding = nn.Embedding.from_pretrained(emb_weights,padding_idx = self.word2vec.key_to_index["<PAD>"])  
         emb_dim = emb_weights.shape[1]
 
         # LSTM layer(s)

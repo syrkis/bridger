@@ -16,7 +16,7 @@ class selfTrain():
         self.base_state_dict = deepcopy(base_estimator.state_dict())
         self.tol = tol
     
-    def fit(self,X,y,max_iter=1):
+    def fit(self,X,y,max_iter=3):
         """
         X has data from both
         y has labels for all, but -1 is for no label
@@ -30,13 +30,13 @@ class selfTrain():
         unlabelled = torch.sum(mask).item()
 
         iteration = 0
-        while abs(prev - unlabelled) > 500 and iteration < max_iter:
+        while abs(prev - unlabelled) > 500 and iteration < max_iter and unlabelled != 0:
             iteration += 1
             self.logger.info(f"Start iteration {iteration}")
             self.base_estimator.load_state_dict(self.base_state_dict)
             labelled_X = X[torch.logical_not(mask),:]
             labels = y[~mask]
-            self.base_estimator.fit(labelled_X, labels, E=1)
+            self.base_estimator.fit(labelled_X, labels, E=2)
             predictions = self.base_estimator.predict_proba(X[mask])
             to_label = (predictions > self.tol) | (predictions < (1-self.tol))
             new_labels = torch.round(predictions[to_label].reshape(torch.sum(to_label).item(),1))

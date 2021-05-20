@@ -9,24 +9,21 @@ import pandas as pd
 import numpy as np
 import sys, os
 
-def runner():
-    pass
-
 def metric(val1,val2):
     return np.mean([val1,val2])
 
 
 def bridge_KLD(source,bridge,target):
-    df = pd.read_csv("data/all_pair_KLD.csv")
-    cols = list(df.columns)
-    val1 = df.iloc[cols.index(source)][bridge]
-    val2 = df.iloc[cols.index(bridge)][target]
+    with open("data/pair_kld.json","r") as infil:
+        dic = json.load(infil)
+    val1 = dic[bridge][source]
+    val2 = dic[target][bridge]
     return metric(val1,val2)
     
 
 def run_bridge(source_name,bridge_name,target_name):
     curr_results = {}
-    model = TNN()
+    model = RNN()
     ST = selfTrain(model)
     
     source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
@@ -60,10 +57,10 @@ def main():
     results = {}
     logger = logging.getLogger('runner')
     source_name = 'Books'
-    target_name = 'All_Beauty'
+    target_name = 'Cell_Phones_and_Accessories'
     source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
     target = torch.tensor(np.load(f"data/npys/{target_name}.npy"))
-    model = TNN()
+    model = RNN()
     ST = selfTrain(model)
     true_target_lab = deepcopy(target[:,-1])
     target[:,-1] = -1
@@ -72,9 +69,9 @@ def main():
     X, y = D[:,:128], D[:,-1].float()
     ST.fit(X,y)
     AC_score = ST.score(target[:,:128],true_target_lab)
-    df = pd.read_csv("data/all_pair_KLD.csv")
-    cols = list(df.columns)
-    KLD = df.iloc[cols.index(source_name)][target_name]
+    with open("data/pair_kld.json","r") as infil:
+        dic = json.load(infil)
+        KLD = dic[target_name][source_name]
     results[source_name + "__" + target_name] = {"Direct_score":AC_score, 'KLD': KLD}
 
 
@@ -89,9 +86,9 @@ def main():
         bridge_metric = bridge_KLD(source_name, bridge, target_name)
         values.append((bridge_metric,bridge))
     values.sort()
-    to_use = values[::3] + [values[-1]]
+    values = values[:2]
     
-    for bridge_metric, bridge in to_use:
+    for bridge_metric, bridge in values:
         logger.info(f"Starting run with {bridge}")
         bridge_results = run_bridge(source_name, bridge, target_name)
         results[bridge] = bridge_results
