@@ -8,6 +8,8 @@ import logging
 import pandas as pd
 import numpy as np
 import sys, os
+import gc
+import tracemalloc
 
 def metric(val1,val2):
     return np.mean([val1,val2])
@@ -21,10 +23,8 @@ def bridge_KLD(source,bridge,target):
     return metric(val1,val2)
     
 
-def run_bridge(source_name,bridge_name,target_name):
+def run_bridge(source_name,bridge_name,target_name,ST):
     curr_results = {}
-    model = RNN()
-    ST = selfTrain(model)
     
     source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
     bridge = torch.tensor(np.load(f"data/npys/{bridge_name}.npy"))
@@ -38,17 +38,20 @@ def run_bridge(source_name,bridge_name,target_name):
     ST.fit(X1,y1)
     f1 = ST.score(bridge[:,:128],bridge_labels)
     curr_results['f1_bridge'] = f1
-
+    
     bridge_mask = ST.ass_labels_ != -1
+    
     Xassigned = bridge[:,:128][bridge_mask]
     yassigned = ST.ass_labels_[bridge_mask]
     Xtarget, ytarget = target[:,:128] , target[:,-1].float()
     X2 = torch.cat((Xassigned,Xtarget),dim=0)
     y2 = torch.cat((yassigned,ytarget),dim=0)
+    
     ST.fit(X2,y2)
     f1 = ST.score(Xtarget[:,:128],target_labels)
     curr_results['f1_target'] = f1
-
+    del ST.estimator_
+    gc.collect()
     return curr_results
 
 
@@ -56,8 +59,8 @@ def run_bridge(source_name,bridge_name,target_name):
 def main():
     results = {}
     logger = logging.getLogger('runner')
-    source_name = 'Books'
-    target_name = 'Cell_Phones_and_Accessories'
+    source_name = 'Movies_and_TV'
+    target_name = 'Pet_Supplies'
     source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
     target = torch.tensor(np.load(f"data/npys/{target_name}.npy"))
     model = RNN()
@@ -74,9 +77,6 @@ def main():
         KLD = dic[target_name][source_name]
     results[source_name + "__" + target_name] = {"Direct_score":AC_score, 'KLD': KLD}
 
-
-
-
     bridges = os.listdir('data/npys')
     values = []
     for bridge in bridges:
@@ -86,13 +86,17 @@ def main():
         bridge_metric = bridge_KLD(source_name, bridge, target_name)
         values.append((bridge_metric,bridge))
     values.sort()
-    values = values[:2]
     
+    gc.collect()
+    tracemalloc.start()
     for bridge_metric, bridge in values:
         logger.info(f"Starting run with {bridge}")
-        bridge_results = run_bridge(source_name, bridge, target_name)
+        bridge_results = run_bridge(source_name, bridge, target_name, ST)
         results[bridge] = bridge_results
         results[bridge]["bridge_KLD"] = bridge_metric
+        current,peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage: {current/10**6}MB. Peak memory usage: {peak/10**6}MB")
+    tracemalloc.stop()
     
 
     with open(f"data/results/{source_name}__{target_name}.json","w") as of:

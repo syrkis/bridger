@@ -70,10 +70,13 @@ class RNN(nn.Module):
         self.to(self.device)
 
     def forward(self, X):
+        self.lstm.flatten_parameters()
+
         N_samples = X.shape[0]
+        
         X = self.embedding(X) 
         X, _ = self.lstm(X)
-
+        
         # Makes all of features for a sample into 1 vector
         X = X.reshape(N_samples,-1)
         X = self.lin1(X)
