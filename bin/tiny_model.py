@@ -26,8 +26,9 @@ class TNN(nn.Module):
     logger = logging.getLogger('TNN')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-    batch_size = 128
+    batch_size = 2**7
     sentence_len = 128
+    num_tokens = 20000
 
     def __init__(self):
         super(TNN, self).__init__()
@@ -36,8 +37,15 @@ class TNN(nn.Module):
         self.train_loss = []
         self.dev_loss = []
 
-        # Layers
-        self.lin = nn.Linear(self.sentence_len, 1)
+        # Layers 
+        self.encoder = lambda idcs: torch.sum(
+            nn.functional.one_hot(
+                torch.clamp(idcs,max=self.num_tokens-1).to(torch.int64),
+                num_classes = self.num_tokens
+            ),
+            dim=1
+        ).float() # encodes input to bag of one hot encoded word vectors
+        self.lin = nn.Linear(self.num_tokens, 1)
         self.sigmoid = nn.Sigmoid()
 
         self.logger.info(f"Model is using '{self.device}' for training")
@@ -45,6 +53,7 @@ class TNN(nn.Module):
 
     def forward(self, X):
         N_samples = X.shape[0]
+        X = self.encoder(X)
         output = self.lin(X)
         output = self.sigmoid(output)
         return output.reshape(N_samples) # Vector/Tensor of shape (N_samples)
@@ -98,15 +107,7 @@ class TNN(nn.Module):
         X = X.float()
         self.eval() # sets model in evaluation mode, to not use dropout
         with torch.no_grad():
-            if str(self.device) == 'cuda':
-                res = torch.cuda.memory_reserved(0)
-                alo = torch.cuda.memory_allocated(0)
-                free_mem = res - alo
-                row_mem = X.element_size() * X.shape[1]
-                pred_batch_size = int((free_mem*0.9) //row_mem)
-                self.logger.info(f"Predicting with batches of size: {pred_batch_size}")
-            else:
-                pred_batch_size = 2**11
+            pred_batch_size = 2**7
 
             X_batches = torch.split(X,pred_batch_size)
             probas = []
