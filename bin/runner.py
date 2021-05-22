@@ -98,6 +98,8 @@ def main():
         print(f"Current memory usage: {current/10**6}MB. Peak memory usage: {peak/10**6}MB")
     tracemalloc.stop()
     
+    if not os.path.isdir("data/results"):
+        os.mkdir("data/results")
 
     with open(f"data/results/{source_name}__{target_name}.json","w") as of:
         json.dump(results,of, indent=2)
