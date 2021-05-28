@@ -9,5 +9,6 @@ for fil in files:
     neg = data[data[:,-1] == 0]
     mask = np.random.randint(pos.shape[0],size = 1000)
     small = np.concatenate((pos[mask],neg[mask]),axis=0)
+    small = np.random.shuffle(small)
     with open(f'data/small/{fil}',"wb") as of:
         np.save(of,small)
