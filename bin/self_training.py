@@ -1,5 +1,4 @@
 
-import resource
 from copy import deepcopy
 from tiny_model import TNN
 from sentiment import RNN
@@ -11,7 +10,7 @@ import torch
 class selfTrain():
     logger = logging.getLogger("selfTrain")
 
-    def __init__(self,base_estimator, tol = 0.95):
+    def __init__(self,base_estimator, tol = 0.975):
         self.base_estimator = base_estimator
         self.base_state_dict = deepcopy(base_estimator.state_dict())
         self.tol = tol
@@ -30,13 +29,13 @@ class selfTrain():
         unlabelled = torch.sum(mask).item()
 
         iteration = 0
-        while abs(prev - unlabelled) > 500 and iteration < max_iter and unlabelled != 0:
+        while abs(prev - unlabelled) > 50 and iteration < max_iter and unlabelled != 0:
             iteration += 1
             self.logger.info(f"Start iteration {iteration}")
             self.base_estimator.load_state_dict(self.base_state_dict)
             labelled_X = X[torch.logical_not(mask),:]
             labels = y[~mask]
-            self.base_estimator.fit(labelled_X, labels, E=3)
+            self.base_estimator.fit(labelled_X, labels, E=5)
             predictions = self.base_estimator.predict_proba(X[mask])
             to_label = (predictions > self.tol) | (predictions < (1-self.tol))
             new_labels = torch.round(predictions[to_label].reshape(torch.sum(to_label).item(),1))
