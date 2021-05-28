@@ -8,3 +8,4 @@
 # R shit
 **/*.Rhistory
 **/*.RData
+.vscode/
