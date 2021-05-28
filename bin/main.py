@@ -2,6 +2,7 @@
 import sys
 import logging
 import runner
+import sentiment
 
 
 FORMAT = '%(name)s: %(asctime)s %(message)s'
@@ -11,4 +12,4 @@ logging.basicConfig(format=FORMAT,
                     level=logging.INFO,
                     stream=sys.stdout)
 logger = logging.getLogger('MAIN')
-runner.main()
+sentiment.main()

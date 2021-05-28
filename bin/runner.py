@@ -26,9 +26,10 @@ def bridge_KLD(source,bridge,target):
 def run_bridge(source_name,bridge_name,target_name,ST):
     curr_results = {}
     
-    source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
-    bridge = torch.tensor(np.load(f"data/npys/{bridge_name}.npy"))
-    target = torch.tensor(np.load(f"data/npys/{target_name}.npy"))
+    source = torch.tensor(np.load(f"data/small/{source_name}.npy"))
+    bridge = torch.tensor(np.load(f"data/small/{bridge_name}.npy"))
+    target = torch.tensor(np.load(f"data/small/{target_name}.npy"))
+    print(bridge)
     bridge_labels = deepcopy(bridge[:,-1])
     bridge[:,-1] = -1
     target_labels = deepcopy(target[:,-1])
@@ -61,8 +62,8 @@ def main():
     logger = logging.getLogger('runner')
     source_name = 'Movies_and_TV'
     target_name = 'Pet_Supplies'
-    source = torch.tensor(np.load(f"data/npys/{source_name}.npy"))
-    target = torch.tensor(np.load(f"data/npys/{target_name}.npy"))
+    source = torch.tensor(np.load(f"data/small/{source_name}.npy"))
+    target = torch.tensor(np.load(f"data/small/{target_name}.npy"))
     model = RNN()
     ST = selfTrain(model)
     true_target_lab = deepcopy(target[:,-1])
@@ -77,7 +78,7 @@ def main():
         KLD = dic[target_name][source_name]
     results[source_name + "__" + target_name] = {"Direct_score":AC_score, 'KLD': KLD}
 
-    bridges = os.listdir('data/npys')
+    bridges = os.listdir('data/small')
     values = []
     for bridge in bridges:
         bridge = bridge[:-4]
@@ -98,10 +99,10 @@ def main():
         print(f"Current memory usage: {current/10**6}MB. Peak memory usage: {peak/10**6}MB")
     tracemalloc.stop()
     
-    if not os.path.isdir("data/results"):
-        os.mkdir("data/results")
+    if not os.path.isdir("data/results_small"):
+        os.mkdir("data/results_small")
 
-    with open(f"data/results/{source_name}__{target_name}.json","w") as of:
+    with open(f"data/results_small/{source_name}__{target_name}.json","w") as of:
         json.dump(results,of, indent=2)
       
 

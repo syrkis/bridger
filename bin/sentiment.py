@@ -30,7 +30,7 @@ class RNN(nn.Module):
         
     # Model variables
     sentence_len = 128
-    batch_size = 2**7
+    batch_size = 2**4
 
     lstm_layers = 3
     lstm_dropout = 0.25
@@ -161,11 +161,11 @@ class RNN(nn.Module):
         
       
 def main(): 
-    D = torch.tensor(np.load('data/npys/Books.npy'))
+    D = torch.tensor(np.load('data/small/Automotive.npy'))
     x, y = D[:,:128] , D[:,-1].float()
-    x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=10**5)
+    x_train, x_test, y_train, y_test = train_test_split(x,y, test_size=0.3)
     model = RNN()
-    model.fit(x_train, y_train, E=1)
+    model.fit(x_train, y_train, E=10)
     #model.save_training_losses('data/train_dev_loss.csv')
     #model.save('data/models/RNN025.pt')
     P = model.predict(x_test)

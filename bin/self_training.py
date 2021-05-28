@@ -36,7 +36,7 @@ class selfTrain():
             self.base_estimator.load_state_dict(self.base_state_dict)
             labelled_X = X[torch.logical_not(mask),:]
             labels = y[~mask]
-            self.base_estimator.fit(labelled_X, labels, E=2)
+            self.base_estimator.fit(labelled_X, labels, E=3)
             predictions = self.base_estimator.predict_proba(X[mask])
             to_label = (predictions > self.tol) | (predictions < (1-self.tol))
             new_labels = torch.round(predictions[to_label].reshape(torch.sum(to_label).item(),1))
