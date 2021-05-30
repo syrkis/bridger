@@ -18,7 +18,7 @@
 \usepackage{times}
 \usepackage{latexsym}
 \renewcommand{\UrlFont}{\ttfamily\small}
-
+\usepackage{graphicx}
 % This is not strictly necessary, and may be commented out,
 % but it will improve the layout of the manuscript,
 % and will typically save some space.
@@ -34,482 +34,304 @@
 
 \newcommand\BibTeX{B\textsc{ib}\TeX}
 
-\title{Instructions for ACL-IJCNLP 2021 Proceedings}
+\title{Risks in using Intermediate Data for Domain Transfer Between Similar Domains}
 
-\author{First Author \\
-  Affiliation / Address line 1 \\
-  Affiliation / Address line 2 \\
-  Affiliation / Address line 3 \\
-  \texttt{email@domain} \\\And
-  Second Author \\
-  Affiliation / Address line 1 \\
-  Affiliation / Address line 2 \\
-  Affiliation / Address line 3 \\
-  \texttt{email@domain} \\}
+\author{Nicolaj Valsted, Noah Syrkis, Tim Poulsen \\
+  IT University of Copenhagen\\
+  \eml{ \{nicv, nobr, timp\} @itu.dk}
+}
 
 \date{}
-
 \begin{document}
 \maketitle
 \begin{abstract}
-This document contains the instructions for preparing a manuscript for the proceedings of ACL-IJCNLP 2021.
-The document itself conforms to its own specifications, and is therefore an example of what your manuscript should look like.
-These instructions should be used for both papers submitted for review and for final versions of accepted papers.
-Authors are asked to conform to all the directions reported in this document.
+
+As unlabelled data sets become more common, the methods for learning from them become more relevant.
+Semi-supervised learning, and more specifically self-training, is one such type of method applicable when labelled data from a similar domain is available.
+If the domain differences are sufficiently large, intermediate data, similar to both source and target, might sustain the generalisation across the transfer, according to new research.
+We explore whether there are risks to this approach, by using it on domains that have small differences and thus cannot be expected to benefit from the procedure.
+We observe that under certain circumstances, our model is indeed negatively affected by the inclusion of intermediate data.
+These findings are not particularly surprising, as introducing intermediate data between domains that already have considerable overlap, seems likely to only become a source of noise. Our project repository can be found at \url{https://github.com/syrkis/bridger}.
+
 \end{abstract}
 
-\section{Credits}
+\section*{Introduction}
+As natural language processing (NLP) becomes more broadly applied, the frequency with which raw, unlabelled training data is the best available, can be expected to increase.
+Methods based on such data fall under the category of unsupervised or semi-supervised learning. 
 
-This document has been adapted by Roberto Navigli
-from the instructions for earlier ACL, NAACL and EMNLP proceedings, including those for 
-EMNLP 2020 by Yulan He,
-ACL 2020 by Steven Bethard, Ryan Cotterrell and Rui Yan, 
-ACL 2019 by Douwe Kiela and Ivan Vuli\'{c},
-NAACL 2019 by Stephanie Lukin and Alla Roskovskaya, 
-ACL 2018 by Shay Cohen, Kevin Gimpel, and Wei Lu, 
-NAACL 2018 by Margaret Michell and Stephanie Lukin,
-2017/2018 (NA)ACL bibtex suggestions from Jason Eisner,
-ACL 2017 by Dan Gildea and Min-Yen Kan, 
-NAACL 2017 by Margaret Mitchell, 
-ACL 2012 by Maggie Li and Michael White, 
-ACL 2010 by Jing-Shing Chang and Philipp Koehn, 
-ACL 2008 by Johanna D. Moore, Simone Teufel, James Allan, and Sadaoki Furui, 
-ACL 2005 by Hwee Tou Ng and Kemal Oflazer, 
-ACL 2002 by Eugene Charniak and Dekang Lin, 
-and earlier ACL and EACL formats written by several people, including
-John Chen, Henry S. Thompson and Donald Walker.
-Additional elements were taken from the formatting instructions of the \emph{International Joint Conference on Artificial Intelligence} and the \emph{Conference on Computer Vision and Pattern Recognition}.
+In some instances, one has labelled data from a comparable domain to that of the unlabelled target domain. In such situations, it often makes sense to train on the labelled domain, and then transfer the generalised knowledge to the target, using methods such as self-training \cite{yarowsky1995unsupervised}. This approach is referred to as domain transfer or domain adaptation.
 
-\section{Introduction}
+When the source and target domains are sufficiently different from one another, using intermediate data can make sense \cite{kumar2020understanding}. 
 
-The following instructions are directed to authors of papers submitted to ACL-IJCNLP 2021 or accepted for publication in its proceedings.
-All authors are required to adhere to these specifications.
-Authors are required to provide a Portable Document Format (PDF) version of their papers.
-\textbf{The proceedings are designed for printing on A4 paper.}
+We explore the potential downside of using this approach when the domains are \textit{not} sufficiently different.
+
+We do this because assessing the efficacy of a real-world model trained using this semi-supervised method might not be feasible.
+Gaining a proper understanding of when this method is and is \textit{not} appropriate is thus important.
+%% TOO MANY SENTENCES START WITH WE
+
+We explore this approach within the field of binary sentiment classification. Specifically, our focus is on classifying consumer reviews from different product categories of online retail.
 
 
-\section{Electronically-available resources}
 
-ACL provides this description and accompanying style files at
-\begin{quote}
-\url{https://2021.aclweb.org/files/acl-ijcnlp2021-templates.zip}
-\end{quote}
-We strongly recommend the use of these style files, which have been appropriately tailored for the ACL-IJCNLP 2021 proceedings. You can also start from the Overleaf template linked from the conference website.
+\section*{Related Work}
+Self-training was initially introduced in \cite{yarowsky1995unsupervised} and has become much used in unsupervised domain adaptation. It has been shown to be successful in multiple instances, such as \cite{phoo2020self,zou2018unsupervised}, which also explore non-NLP machine learning fields, indicating the breadth of use case categories for the method.
 
-\paragraph{\LaTeX-specific details:}
-The templates include the \LaTeX2e{} source (\texttt{\small acl2021.tex}),
-the \LaTeX2e{} style file used to format it (\texttt{\small acl2021.sty}),
-an ACL bibliography style (\texttt{\small acl\_natbib.bst}),
-an example bibliography (\texttt{\small acl2021.bib}),
-and the bibliography for the ACL Anthology (\texttt{\small anthology.bib}).
+%% An example of transfer learning is cycle self-training \cite{liu2021cycle}. This method uses a source trained model to generate target pseudo-labels which are in turn used to train and predict on source labels, yielding both generality and more specific target domain knowledge.
 
+The main theoretical inspiration for our experiment comes from \cite{kumar2020understanding} as well as general handling of non-IID data.
+\citet{kumar2020understanding} focus on structured domain adaptation: a multi-step transition involving many intermediate domains, each slightly different from the previous in the direction of the target.
+It is shown theoretically that this performs well when the source and target distributions are significantly different.
+Our experiment slightly contrasts this as we are not using many intermediate domains, but instead just a single one.
 
-\section{Anonymity}
-As reviewing will be double-blind, papers submitted for review should not include any author information (such as names or affiliations). Furthermore, self-references that reveal the author's identity, \emph{e.g.},
-\begin{quote}
-We previously showed \citep{Gusfield:97} \ldots
-\end{quote}
-should be avoided. Instead, use citations such as 
-\begin{quote}
-\citet{Gusfield:97} previously showed\ldots
-\end{quote}
-Please do not use anonymous citations and do not include acknowledgements.
-\textbf{Papers that do not conform to these requirements may be rejected without review.}
-
-Any preliminary non-archival versions of submitted papers should be listed in the submission form but not in the review version of the paper.
-Reviewers are generally aware that authors may present preliminary versions of their work in other venues, but will not be provided the list of previous presentations from the submission form. 
-
-Please do not include github links that reveal the authors' identities in your submission. If you feel it is important to include your source code, you can zip the code and submit it to softconf. 
-
-Once a paper has been accepted to the conference, the camera-ready version of the paper should include the author's names and affiliations, and is allowed to use self-references and provide the related github link.
+In practice, a measure of domain similarity is thus required. This has been explored by \cite{van-asch-daelemans-2010-using}.
+They determine the similarity between training and test set distributions and investigate whether their measure is a predictor for performance. Among other measures, they make use of Rényi divergence with $\alpha=0.99$, which approximates Kullback-Leibler divergence (KLD) \cite{kullback1951information}, yielding the best correlation between performance and divergence.
 
 
-\paragraph{\LaTeX-specific details:}
-For an anonymized submission, ensure that {\small\verb|\aclfinalcopy|} at the top of this document is commented out, and that you have filled in the paper ID number (assigned during the submission process on softconf) where {\small\verb|***|} appears in the {\small\verb|\def\aclpaperid{***}|} definition at the top of this document.
-For a camera-ready submission, ensure that {\small\verb|\aclfinalcopy|} at the top of this document is not commented out.
+\section*{Data}
+Our experiment uses the 2018 Amazon Review data \cite{ni2019justifying}. It consists of product reviews from 29 different categories. Each review is made up of a review text and a 1 to 5 star rating, as well as various other fields, which we did not use.
+To avoid ambiguity in our binary sentiment setup, it was decided to disregard 3 star reviews. The remaining 1-2 and 4-5 star reviews were categorized as negative and positive, respectively.
+Moreover, to achieve a balanced data set we sampled to get a 50/50 distribution of labels.
+In addition to this, we disregarded any sample with a review text longer than 128 tokens—after word tokenization—which removed about 10 \% of the data. Data with fewer than 128 tokens were padded.
+Lastly, we also excluded product categories that had fewer than 500,000 negative or positive reviews, such that we would have a million samples from each domain, calling this data set 1M. From 1M we further constructed a smaller data set, 2K with 1,000 negative and positive samples from each domain.
 
+\section*{Methodology}
 
-\section{Multiple Submission Policy}
+Our setup was run, with mild differences in hyperparameters for 1M and 2K.
 
-ACL-IJCNLP 2021 will not consider any paper that is under review in a journal or another conference at the time of submission, and submitted papers must not be submitted elsewhere during the ACL-IJCNLP 2021 review period. This policy covers all refereed and archival conferences and workshops (e.g., NAACL). The only exception is that a paper can be dual-submitted to both ACL-IJCNLP 2021 and an ACL-IJCNLP workshop. 
+\subsection*{Model}
+The model architecture we use is based on a 3-layer bidirectional LSTM \cite{sak2014long} with a dropout of 0.25, and a hidden dimension of 32.
+The LSTM layers are prefaced by an embedding layer, which is initialised using 100-dimensional skip-gram word2vec embeddings retrieved from Twitter \footnote{\url{https://robvanderg.github.io/blog/twit\_embeds.htm}}, receiving inputs of length 128, as mentioned previously.
+The output of the LSTM layers is fed to a linear layer of size 250 with a dropout of 0.25, which in turn is forwarded to a sigmoid output node.
+The model is trained with batch sizes of 1024 for 1M and 16 for 2K.
 
-In addition, we will not consider any paper that overlaps significantly in content or results with papers that will be (or have been) published elsewhere. 
-Authors submitting more than one paper to ACL-IJCNLP 2021 must ensure that their submissions do not overlap significantly ($>25$\%) with each other in content or results.
+\subsection*{Domain Similarity Evaluation}
 
-\section{Formatting Instructions}
+Inspired by \cite{van-asch-daelemans-2010-using}, we use KLD to evaluate the similarity between two domains.
+Evaluating the divergence when an intermediate domain is introduced is done in the following way: 
+If we know the KLD between domains A\textrightarrow B and B\textrightarrow C, we want to determine the "combined divergence" of the path A\textrightarrow B\textrightarrow C.
+The combined divergence is specified in three different ways: the mean, the harmonic mean, and the max of the KLDs of A\textrightarrow B and B\textrightarrow C.
 
-Manuscripts must be in two-column format.
-Exceptions to the two-column format include the title, authors' names and complete addresses, which must be centered at the top of the first page, and any full-width figures or tables (see the guidelines in Section~\ref{ssec:title-authors}).
-\textbf{Type single-spaced.}
-Start all pages directly under the top margin.
-Pages should be numbered in the version submitted for review, but \textbf{pages should not be numbered in the camera-ready version}.
+\subsection*{Self-training}
+Our experiment relies on self-training, and we will use the general algorithm outlined in \cite{yarowsky1995unsupervised} but adapted to the setting of domain transfer.
+We perform at most 3 iterations of self-training \footnote{Additionally, if less than 50 for 2K and 500 for 1M samples were labelled in an iteration, the procedure would stop}.
+In each iteration, we train a freshly initialised model (2 epochs for 1M and 6 epochs for 2K) on labelled data.
+We then predict on unlabelled data, creating the pseudo-labelled data set, $B^*$, from the samples about which our model was more than 95\% confident.
 
-\paragraph{\LaTeX-specific details:}
-The style files will generate page numbers when {\small\verb|\aclfinalcopy|} is commented out, and remove them otherwise.
+When $B^*$ is constructed we self-train from this to C. The result of this is what is compared to our baseline.
 
-
-\subsection{File Format}
-\label{sect:pdf}
-
-For the production of the electronic manuscript you must use Adobe's Portable Document Format (PDF).
-Please make sure that your PDF file includes all the necessary fonts (especially tree diagrams, symbols, and fonts with Asian characters).
-When you print or create the PDF file, there is usually an option in your printer setup to include none, all or just non-standard fonts.
-Please make sure that you select the option of including ALL the fonts.
-\textbf{Before sending it, test your PDF by printing it from a computer different from the one where it was created.}
-Moreover, some word processors may generate very large PDF files, where each page is rendered as an image.
-Such images may reproduce poorly.
-In this case, try alternative ways to obtain the PDF.
-One way on some systems is to install a driver for a postscript printer, send your document to the printer specifying ``Output to a file'', then convert the file to PDF.
-
-It is of utmost importance to specify the \textbf{A4 format} (21 cm x 29.7 cm) when formatting the paper.
-Print-outs of the PDF file on A4 paper should be identical to the hardcopy version.
-If you cannot meet the above requirements about the production of your electronic submission, please contact the publication chairs as soon as possible.
-
-\paragraph{\LaTeX-specific details:}
-PDF files are usually produced from \LaTeX{} using the \texttt{\small pdflatex} command.
-If your version of \LaTeX{} produces Postscript files, \texttt{\small ps2pdf} or \texttt{\small dvipdf} can convert these to PDF.
-To ensure A4 format in \LaTeX, use the command {\small\verb|\special{papersize=210mm,297mm}|}
-in the \LaTeX{} preamble (below the {\small\verb|\usepackage|} commands) and use \texttt{\small dvipdf} and/or \texttt{\small pdflatex}; or specify \texttt{\small -t a4} when working with \texttt{\small dvips}.
-
-\subsection{Layout}
-\label{ssec:layout}
-
-Format manuscripts two columns to a page, in the manner these
-instructions are formatted.
-The exact dimensions for a page on A4 paper are:
-
+\subsection*{Experimental setup}
+Five pairs of domains are selected based on having high KLD (low similarity) with the limiting rule of not allowing a domain to be used in more than two pairs.
+The pairs and their experiment ID's can be found in Appendix B. For each of these pairs, we ran what we consider a standalone experiment with the following structure for both 1M and 2K:
 \begin{itemize}
-\item Left and right margins: 2.5 cm
-\item Top margin: 2.5 cm
-\item Bottom margin: 2.5 cm
-\item Column width: 7.7 cm
-\item Column height: 24.7 cm
-\item Gap between columns: 0.6 cm
+        \item Self-train from source (A) to target (C).
+        \item Calculate $F_1$-score of the resulting model on withheld target labels. This forms our baseline.
+        \item For every bridge:
+     \subitem \begin{itemize}
+     \vspace{-2em}
+        \item Calculate the three combined KLD scores.
+        \item Self-train from source (A) to bridge (B).
+        \item Store resulting data set of pseudo-labels as $B^*$.
+        \item Self-train from $B^*$ to target (C).
+        \item Calculate $F_1$-score of the resulting model on withheld target labels.
+    \end{itemize}
 \end{itemize}
 
-\noindent Papers should not be submitted on any other paper size.
-If you cannot meet the above requirements about the production of your electronic submission, please contact the publication chairs above as soon as possible.
+Afterwards, we compare the baseline of self-training directly from source to target with the results from self-training using a bridge. We also note the correlation between performance and KLD scores.
 
-\subsection{Fonts}
+\section*{Results \& Analysis}
+Having run the five experiments for both 1M and 2K, we investigate what effect using bridges has on performance, and whether there is a correlation between KLD and bridge performance.
 
-For reasons of uniformity, Adobe's \textbf{Times Roman} font should be used.
-If Times Roman is unavailable, you may use Times New Roman or \textbf{Computer Modern Roman}.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{report/boxplots_2K.png}
+    \caption{$F_1$-score deviations from baseline (direct domain transfer A\textrightarrow C) for experiments on 2K.}
+    \label{fig:box_2k}
+\end{figure}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{report/boxplots_1M.png}
+    \caption{$F_1$-score deviations from baseline (direct domain transfer A\textrightarrow C) for experiments on 1M.}
+    \label{fig:box_1M}
+\end{figure}
+As can be seen in figure \ref{fig:box_2k} there is a significant performance loss in the 2K experiment, when including intermediate data, as compared to the baseline (dashed).
+For figure \ref{fig:box_1M} the price of including this unnecessary intermediate data, does not seem to have a reliably negative effect on performance. Note that the x-axes for the two figures are different scales.
 
-Table~\ref{font-table} specifies what font sizes and styles must be used for each type of text in the manuscript.
-
-\begin{table}
+\begin{table}[h]
 \centering
-\begin{tabular}{lrl}
-\hline \textbf{Type of Text} & \textbf{Font Size} & \textbf{Style} \\ \hline
-paper title & 15 pt & bold \\
-author names & 12 pt & bold \\
-author affiliation & 12 pt & \\
-the word ``Abstract'' & 12 pt & bold \\
-section titles & 12 pt & bold \\
-subsection titles & 11 pt & bold \\
-document text & 11 pt  &\\
-captions & 10 pt & \\
-abstract text & 10 pt & \\
-bibliography & 10 pt & \\
-footnotes & 9 pt & \\
+\subsection*{\centering 2K Results}
+\begin{tabular}{|c|c|c|}
 \hline
+ \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+ 1 & -0.35 & 0.27 \\ \hline
+ 2 & -0.18 & 0.57 \\ \hline
+ 3 & -0.06 & 0.85 \\ \hline
+ 4 &  0.26 & 0.41 \\ \hline
+ 5 & -0.05 & 0.88 \\ \hline
 \end{tabular}
-\caption{\label{font-table} Font guide. }
+\caption{Correlation and $p$-values between mean KLD values of the path A \textrightarrow B \textrightarrow C and $F_1$-scores on the target domain.}
+\label{tab:corr_2K}
 \end{table}
-
-\paragraph{\LaTeX-specific details:}
-To use Times Roman in \LaTeX2e{}, put the following in the preamble:
-\begin{quote}
-\small
-\begin{verbatim}
-\usepackage{times}
-\usepackage{latexsym}
-\end{verbatim}
-\end{quote}
-
-
-\subsection{Ruler}
-A printed ruler (line numbers in the left and right margins of the article) should be presented in the version submitted for review, so that reviewers may comment on particular lines in the paper without circumlocution.
-The presence or absence of the ruler should not change the appearance of any other content on the page.
-The camera ready copy should not contain a ruler.
-
-\paragraph{Reviewers:}
-note that the ruler measurements may not align well with lines in the paper -- this turns out to be very difficult to do well when the paper contains many figures and equations, and, when done, looks ugly.
-In most cases one would expect that the approximate location will be adequate, although you can also use fractional references (\emph{e.g.}, this line ends at mark $295.5$).
-
-\paragraph{\LaTeX-specific details:}
-The style files will generate the ruler when {\small\verb|\aclfinalcopy|} is commented out, and remove it otherwise.
-
-\subsection{Title and Authors}
-\label{ssec:title-authors}
-
-Center the title, author's name(s) and affiliation(s) across both columns.
-Do not use footnotes for affiliations.
-Place the title centered at the top of the first page, in a 15-point bold font.
-Long titles should be typed on two lines without a blank line intervening.
-Put the title 2.5 cm from the top of the page, followed by a blank line, then the author's names(s), and the affiliation on the following line.
-Do not use only initials for given names (middle initials are allowed).
-Do not format surnames in all capitals (\emph{e.g.}, use ``Mitchell'' not ``MITCHELL'').
-Do not format title and section headings in all capitals except for proper names (such as ``BLEU'') that are
-conventionally in all capitals.
-The affiliation should contain the author's complete address, and if possible, an electronic mail address.
-
-The title, author names and addresses should be completely identical to those entered to the electronical paper submission website in order to maintain the consistency of author information among all publications of the conference.
-If they are different, the publication chairs may resolve the difference without consulting with you; so it is in your own interest to double-check that the information is consistent.
-
-Start the body of the first page 7.5 cm from the top of the page.
-\textbf{Even in the anonymous version of the paper, you should maintain space for names and addresses so that they will fit in the final (accepted) version.}
-
-
-\subsection{Abstract}
-Use two-column format when you begin the abstract.
-Type the abstract at the beginning of the first column.
-The width of the abstract text should be smaller than the
-width of the columns for the text in the body of the paper by 0.6 cm on each side.
-Center the word \textbf{Abstract} in a 12 point bold font above the body of the abstract.
-The abstract should be a concise summary of the general thesis and conclusions of the paper.
-It should be no longer than 200 words.
-The abstract text should be in 10 point font.
-
-\subsection{Text}
-Begin typing the main body of the text immediately after the abstract, observing the two-column format as shown in the present document.
-
-Indent 0.4 cm when starting a new paragraph.
-
-\subsection{Sections}
-
-Format section and subsection headings in the style shown on the present document.
-Use numbered sections (Arabic numerals) to facilitate cross references.
-Number subsections with the section number and the subsection number separated by a dot, in Arabic numerals.
-
-\subsection{Footnotes}
-Put footnotes at the bottom of the page and use 9 point font.
-They may be numbered or referred to by asterisks or other symbols.\footnote{This is how a footnote should appear.}
-Footnotes should be separated from the text by a line.\footnote{Note the line separating the footnotes from the text.}
-
-\subsection{Graphics}
-
-Place figures, tables, and photographs in the paper near where they are first discussed, rather than at the end, if possible.
-Wide illustrations may run across both columns.
-Color is allowed, but adhere to Section~\ref{ssec:accessibility}'s guidelines on accessibility.
-
-\paragraph{Captions:}
-Provide a caption for every illustration; number each one sequentially in the form:
-``Figure 1. Caption of the Figure.''
-``Table 1. Caption of the Table.''
-Type the captions of the figures and tables below the body, using 10 point text.
-Captions should be placed below illustrations.
-Captions that are one line are centered (see Table~\ref{font-table}).
-Captions longer than one line are left-aligned (see Table~\ref{tab:accents}).
-
-\begin{table}
+\begin{table}[h]
 \centering
-\begin{tabular}{lc}
+\subsection*{\centering 1M Results}
+\begin{tabular}{|c|c|c|}
 \hline
-\textbf{Command} & \textbf{Output}\\
-\hline
-\verb|{\"a}| & {\"a} \\
-\verb|{\^e}| & {\^e} \\
-\verb|{\`i}| & {\`i} \\ 
-\verb|{\.I}| & {\.I} \\ 
-\verb|{\o}| & {\o} \\
-\verb|{\'u}| & {\'u}  \\ 
-\verb|{\aa}| & {\aa}  \\\hline
+ \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+ 1 & \,\,0.31 & 0.32 \\ \hline
+ 2 & -0.18 & 0.58 \\ \hline
+ 3 & -0.55 & 0.07 \\ \hline
+ 4 & -0.64 & 0.02 \\ \hline
+ 5 & -0.16 & 0.62 \\ \hline
 \end{tabular}
-\begin{tabular}{lc}
-\hline
-\textbf{Command} & \textbf{Output}\\
-\hline
-\verb|{\c c}| & {\c c} \\ 
-\verb|{\u g}| & {\u g} \\ 
-\verb|{\l}| & {\l} \\ 
-\verb|{\~n}| & {\~n} \\ 
-\verb|{\H o}| & {\H o} \\ 
-\verb|{\v r}| & {\v r} \\ 
-\verb|{\ss}| & {\ss} \\
-\hline
-\end{tabular}
-\caption{Example commands for accented characters, to be used in, \emph{e.g.}, \BibTeX\ names.}\label{tab:accents}
+
+\caption{Correlation and $p$-values between mean KLD values of the path A \textrightarrow B and B \textrightarrow C and $F_1$-scores on the target domain.}
+\label{tab:corr_1M}
 \end{table}
-
-\paragraph{\LaTeX-specific details:}
-The style files are compatible with the caption and subcaption packages; do not add optional arguments.
-\textbf{Do not override the default caption sizes.}
-
-
-\subsection{Hyperlinks}
-Within-document and external hyperlinks are indicated with Dark Blue text, Color Hex \#000099.
-
-\subsection{Citations}
-Citations within the text appear in parentheses as~\citep{Gusfield:97} or, if the author's name appears in the text itself, as \citet{Gusfield:97}.
-Append lowercase letters to the year in cases of ambiguities.  
-Treat double authors as in~\citep{Aho:72}, but write as in~\citep{Chandra:81} when more than two authors are involved. Collapse multiple citations as in~\citep{Gusfield:97,Aho:72}. 
-
-Refrain from using full citations as sentence constituents.
-Instead of
+Table \ref{tab:corr_2K} and \ref{tab:corr_1M} show Pearson's correlation coefficient and its corresponding $p$-value between mean based KLD and performance. Appendix A contains the results for all three KLD combinations.
+We utilize the experiments to test the following hypotheses 
 \begin{quote}
-  ``\citep{Gusfield:97} showed that ...''
+    $H_0$ : \textit{"Our combined KLD metric does not correlate with model performance"}
 \end{quote}
-write
+
 \begin{quote}
-``\citet{Gusfield:97} showed that ...''
+    $H_A$ : \textit{"Our combined KLD metric correlates with model performance"}
 \end{quote}
 
-\begin{table*}
-\centering
-\begin{tabular}{lll}
-\hline
-\textbf{Output} & \textbf{natbib command} & \textbf{Old ACL-style command}\\
-\hline
-\citep{Gusfield:97} & \small\verb|\citep| & \small\verb|\cite| \\
-\citealp{Gusfield:97} & \small\verb|\citealp| & no equivalent \\
-\citet{Gusfield:97} & \small\verb|\citet| & \small\verb|\newcite| \\
-\citeyearpar{Gusfield:97} & \small\verb|\citeyearpar| & \small\verb|\shortcite| \\
-\hline
-\end{tabular}
-\caption{\label{citation-guide}
-Citation commands supported by the style file.
-The style is based on the natbib package and supports all natbib citation commands.
-It also supports commands defined in previous ACL style files for compatibility.
-}
-\end{table*}
+For 2K, the lack of correlation is apparent with $p$-values significantly above 0.05. For 1M the $p$-values also tend to be above 0.05 except for experiment 4.
+However, assuming $H_0$ to be true, it is not surprising to see one of our five experiments having a $p$-value of 0.02 or less. The probability of this occurring is about 10\% and thus we do not disregard $H_0$ in favour of $H_A$.
+Thus, the tables indicate that there is \textbf{no} a correlation between our domain similarity metric and performance. 
 
-\paragraph{\LaTeX-specific details:}
-Table~\ref{citation-guide} shows the syntax supported by the style files.
-We encourage you to use the natbib styles.
-You can use the command {\small\verb|\citet|} (cite in text) to get ``author (year)'' citations as in \citet{Gusfield:97}.
-You can use the command {\small\verb|\citep|} (cite in parentheses) to get ``(author, year)'' citations as in \citep{Gusfield:97}.
-You can use the command {\small\verb|\citealp|} (alternative cite without  parentheses) to get ``author year'' citations (which is useful for  using citations within parentheses, as in \citealp{Gusfield:97}).
+\section*{Discussion}
 
+The experiments seem to show that under certain conditions the intermediate data provides little enough signal to be outweighed by its accompanying noise.
+This is not the case for 1M, likely due to the model being able to generalise well from the source domain, thus making it unfazed by the intermediate domain.
 
-\subsection{References}
-Gather the full set of references together under the heading \textbf{References}; place the section before any Appendices. 
-Arrange the references alphabetically by first author, rather than by order of occurrence in the text.
+However, for 2K we do see a considerable drop in performance as seen in figure \ref{fig:box_2k}. We suspect that for 2K there is not enough data for the model to generalise, so the model mislabels the intermediate domain which only worsens the performance on the target domain.
+This indicates that model architectures that are not great for generalisation, or situations where poor or little data is available, can be negatively affected by this method. This aligns well with our intuition.
 
-Provide as complete a citation as possible, using a consistent format, such as the one for \emph{Computational Linguistics\/} or the one in the  \emph{Publication Manual of the American 
-Psychological Association\/}~\citep{APA:83}.
-Use full names for authors, not just initials.
+Furthermore, we do not observe any significant correlation between KLD and performance. This could imply that our method of evaluating domain differences using KLD is flawed.
+But, it does seem more likely that the lack of correlation is a consequence of there being no true utility for the bridge, as the domains are too similar. This would leave only noise, which should not be expected to correlate with the KLD.
 
-Submissions should accurately reference prior and related work, including code and data.
-If a piece of prior work appeared in multiple venues, the version that appeared in a refereed, archival venue should be referenced.
-If multiple versions of a piece of prior work exist, the one used by the authors should be referenced.
-Authors should not rely on automated citation indices to provide accurate references for prior and related work.
+Assuming the lack of pattern between KLD's and performance, is not due to noise, as we suspect it is, the domain difference evaluation metric would need to be changed. However, this seems unlikely as KLD has shown to be indicative of such differences in the past \cite{van-asch-daelemans-2010-using}.
 
-The following text cites various types of articles so that the references section of the present document will include them.
-\begin{itemize}
-\item Example article in journal: \citep{Ando2005}.
-\item Example article in proceedings, with location: \citep{borschinger-johnson-2011-particle}.
-\item Example article in proceedings, without location: \citep{andrew2007scalable}.
-\item Example arxiv paper: \citep{rasooli-tetrault-2015}. 
-\end{itemize}
+In conclusion, it seems to be important to quantify the difference between domains, to gauge whether finding additional, intermediate data is useful or not.
 
+\section*{Future work}
+One interesting aspect of our results, that we would like explored, is whether the differences in performance of the various intermediate data sets are actually due to noise. Assuming the noise is normally distributed, and that the signal is not, this could be done by measuring the Kolmogorov–Smirnov distance between the errors and the best fitting normal distribution.
 
-\paragraph{\LaTeX-specific details:}
-The \LaTeX{} and Bib\TeX{} style files provided roughly follow the American Psychological Association format.
-If your own bib file is named \texttt{\small acl2021.bib}, then placing the following before any appendices in your \LaTeX{}  file will generate the references section for you:
-\begin{quote}\small
-\verb|\bibliographystyle{acl_natbib}|\\
-\verb|\bibliography{acl2021}|
-\end{quote}
+In addition to exploring the risks that we have done here, discovering in which particular situations using intermediate data is useful, would be interesting.
+As natural languages tend to be quite redundant \cite{yarowsky1995unsupervised}, one would need domains that are significantly more dissimilar than those within the Amazon Review data set, to research this. In this context implementing a method using multiple intermediate data sets, more similar to what is described in \citet{kumar2020understanding}, would be more appropriate.
 
-You can obtain the complete ACL Anthology as a Bib\TeX\ file from \url{https://aclweb.org/anthology/anthology.bib.gz}.
-To include both the anthology and your own bib file, use the following instead of the above.
-\begin{quote}\small
-\verb|\bibliographystyle{acl_natbib}|\\
-\verb|\bibliography{anthology,acl2021}|
-\end{quote}
-
-
-\subsection{Digital Object Identifiers}
-As part of our work to make ACL materials more widely used and cited outside of our discipline, ACL has registered as a CrossRef member, as a registrant of Digital Object Identifiers (DOIs), the standard for registering permanent URNs for referencing scholarly materials.
-
-All camera-ready references are required to contain the appropriate DOIs (or, as a second resort, the hyperlinked ACL Anthology Identifier) to all cited works.
-Appropriate records should be found for most materials in the current ACL Anthology at \url{http://aclanthology.info/}.
-As examples, we cite \citep{goodman-etal-2016-noise} to show you how papers with a DOI will appear in the bibliography.
-We cite \citep{harper-2014-learning} to show how papers without a DOI but with an ACL Anthology Identifier will appear in the bibliography.
-
-\paragraph{\LaTeX-specific details:}
-Please ensure that you use Bib\TeX\ records that contain DOI or URLs for any of the ACL materials that you reference.
-If the Bib\TeX{} file contains DOI fields, the paper title in the references section will appear as a hyperlink to the DOI, using the hyperref \LaTeX{} package.
-
-
-\section{Supplementary Materials}
-\label{sec:supplementary}
-
-Supplementary material may report preprocessing decisions, model parameters, and other details necessary for the replication of the experiments reported in the paper.
-Seemingly small preprocessing decisions can sometimes make a large difference in performance, so it is crucial to record such decisions to precisely characterize state-of-the-art methods. 
-
-Nonetheless, supplementary material should be supplementary (rather than central) to the paper.
-\textbf{Submissions that misuse the supplementary material may be rejected without review.}
-Supplementary material may include explanations or details of proofs or derivations that do not fit into the paper, lists of
-features or feature templates, sample inputs and outputs for a system, hyperparameter values, pseudo-code or source code, and data.
-
-The paper should not rely on the supplementary material: while the paper may refer to and cite the supplementary material and the supplementary material will be available to the reviewers, they will not be asked to review the supplementary material.
-
-Supplementary material can be uploaded as up to three separate files: a single appendix file in PDF format, a single .tgz or .zip archive containing software, and/or a single .tgz or .zip archive containing data.
-
-
-
-\subsection{Appendices}
-\label{sec:appendix}
-Appendices are material that can be read, and include lemmas, formulas, proofs, and tables that are not critical to the reading and understanding of the paper. 
-In the submitted version, appendices should be uploaded as a separate file. \textbf{Submissions which include appendices in the main paper will be rejected without review.} In the camera ready version, instead, appendices should directly follow the text and the references. 
-
-\paragraph{\LaTeX-specific details:}
-In your camera ready version use {\small\verb|\appendix|} before any appendix section to switch the section numbering over to letters.
-
-\subsection{Software and Data}
-\label{sec:software_and_data}
-Submissions may include software and data used in the work and described in the paper.
-Any accompanying software and/or data should include licenses and documentation of research review as appropriate.
-
-\section{Accessibility}
-\label{ssec:accessibility}
-
-In an effort to accommodate people who are color-blind (as well as those printing to paper), grayscale readability is strongly encouraged.
-Color is not forbidden, but authors should ensure that tables and figures do not rely solely on color to convey critical distinctions.
-A simple criterion:
-All curves and points in your figures should be clearly distinguishable without color.
-
-\section{Translation of non-English Terms}
-
-It is also advised to supplement non-English characters and terms with appropriate transliterations and/or translations since not all readers understand all such characters and terms.
-Inline transliteration or translation can be represented in the order of:
-\begin{center}
-\begin{tabular}{c}
-original-form \\
-transliteration \\
-``translation''
-\end{tabular}
-\end{center}
-
-\section{\LaTeX{} Compilation Issues}
-You may encounter the following error during compilation: 
-\begin{quote}
-{\small\verb|\pdfendlink|} ended up in different nesting level than {\small\verb|\pdfstartlink|}.
-\end{quote}
-This happens when \texttt{\small pdflatex} is used and a citation splits across a page boundary.
-To fix this, the style file contains a patch consisting of two lines:
-(1) {\small\verb|\RequirePackage{etoolbox}|} (line 455 in \texttt{\small acl2021.sty}), and
-(2) A long line below (line 456 in \texttt{\small acl2021.sty}).
-
-If you still encounter compilation issues even with the patch enabled, disable the patch by commenting the two lines, and then disable the \texttt{\small hyperref} package by loading the style file with the \texttt{\small nohyperref} option:
-
-\noindent
-{\small\verb|\usepackage[nohyperref]{acl2021}|}
-
-\noindent
-Then recompile, find the problematic citation, and rewrite the sentence containing the citation. (See, {\em e.g.}, \url{http://tug.org/errors.html})
-
-\section*{Acknowledgments}
-
-The acknowledgments should go immediately before the references. Do not number the acknowledgments section.
-\textbf{Do not include this section when submitting your paper for review.}
+\section*{Conclusion}
+We have seen that using intermediate data to bridge domain differences using self-training, can sometimes have a negative effect if the differences between source and target domains are not sufficiently large.
+This is likely because there is enough overlap between the domains, making the intermediate data superfluous, thus only making it a possible source of noise.
+This makes it all the more important to quantify the differences between domains accurately. We have attempted the use of Kullback-Leibler divergence as a measure of this, though our experiment was not designed to gauge the usefulness of this particular metric.
 
 \bibliographystyle{acl_natbib}
 \bibliography{papers}
 
 %\appendix
+
+\section*{Contributions}
+Though initially a part of group 2, Søren Hother Rasmussen (sohr@itu.dk) did not take part in the project. 
+As for the rest of us, we did the entire project together either screen-sharing virtually or at ITU campus.
+Especially we would like to attribute this project to desktop 10, on the HPC. Fried but not forgotten. . . .
+
+
+
+\onecolumn
+\newpage
+\section*{Appendix A}
+\subsection*{\centering 1M Mean \hspace{150} 2K Mean}
+\begin{table}[h]
+\centering
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     0 & \,\,0.31 & 0.32 \\ \hline
+     1 & -0.18 & 0.58 \\ \hline
+     2 & -0.55 & 0.07 \\ \hline
+     3 & -0.64 & 0.02 \\ \hline
+     4 & -0.16 & 0.62 \\ \hline
+    \end{tabular}
+\hspace{2em}
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     1 & -0.40 & 0.19 \\ \hline
+     2 & -0.20 & 0.53 \\ \hline
+     3 & -0.09 & 0.79 \\ \hline
+     4 &  0.16 & 0.61 \\ \hline
+     5 & -0.06 & 0.86 \\ \hline
+    \end{tabular}
+\caption{Correlation and $p$-values between mean bridge KLD values and $F_1$-scores on the target domain, where the bridge score is the mean of the KLD's between A \textrightarrow B and B \textrightarrow C}
+\end{table}
+
+\subsection*{\centering 1M Max \hspace{150} 2K Max}
+\begin{table}[h]
+\centering
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     0 & 0.38 & 0.22 \\ \hline
+     1 & -0.38& 0.23 \\ \hline
+     2 & -0.39 & 0.21 \\ \hline
+     3 & -0.58 & 0.05 \\ \hline
+     4 & -0.16 & 0.61 \\ \hline
+    \end{tabular}
+\hspace{2em}
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     0 & -0.59 & 0.04 \\ \hline
+     1 & -0.05 & 0.89 \\ \hline
+     2 & -0.08 & 0.80 \\ \hline
+     3 & -0.18 & 0.58 \\ \hline
+     4 & -0.02 & 0.96 \\ \hline
+    \end{tabular}
+\caption{Correlation and $p$-values between mean bridge KLD values and $F_1$-scores on the target domain, where the bridge score is the max of the KLD's between A \textrightarrow B and B \textrightarrow C}
+\end{table}
+
+\subsection*{\centering 1M Harmonic Mean \hspace{100} 2K Harmonic Mean}
+\begin{table}[h]
+\centering
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     0 & 0.21 & 0.51 \\ \hline
+     1 & -0.12 & 0.72 \\ \hline
+     2 & -0.57 & 0.06 \\ \hline
+     3 & -0.59 & 0.05 \\ \hline
+     4 & -0.16 & 0.62 \\ \hline
+    \end{tabular}
+\hspace{2em}
+    \begin{tabular}{|c|c|c|}
+    \hline
+     \textbf{Experiment} & \textbf{Correlation} & \textbf{\textit{p}-value} \\ \hline
+     0 & -0.33 & 0.30 \\ \hline
+     1 & -0.18 & 0.57 \\ \hline
+     2 & -0.09 & 0.78 \\ \hline
+     3 &  0.26 & 0.42 \\ \hline
+     4 & -0.06 & 0.86 \\ \hline
+    \end{tabular}
+\caption{Correlation and $p$-values between mean bridge KLD values and $F_1$-scores on the target domain, where the bridge score is the harmonic mean of the KLD's between A \textrightarrow B and B \textrightarrow C}
+\end{table}
+
+\newpage
+\section*{Appendix B}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Experiment ID} & \textbf{Source domain} & \textbf{Target domain} \\ \hline
+1 & Books & Automotive \\ \hline
+2 & Books & Cell Phones and Accessories \\ \hline
+3 & Grocery and Gourmet Food & Electronics \\ \hline
+4 & Movies and TV & Pet Supplies \\ \hline
+5 & Sports and Outdoors & Clothings, Shoes and Jewelry \\ \hline
+\end{tabular}
+\end{table}
 
 
 
